@@ -12,8 +12,6 @@ from pylard.pylardata.rawdigitsopdata import RawDigitsOpData
 from subeventdisc import subeventdiscConfig, runSubEventDisc, runSubEventDiscChannel
 import pysubevent.pedestal as ped
 
-app = QtGui.QApplication([])
-
 #  expects 'raw_wf_tree'
 #fname='/Users/twongjirad/working/uboone/data/FlasherData_080115/wf_run001.root'
 fname='/Users/twongjirad/working/uboone/data/FlasherData_080715/wf_run004.root'
@@ -27,6 +25,7 @@ opdata = WFOpData( fname )
 #fname='/Users/twongjirad/working/uboone/data/LightLeakData/20150818/rawdigits.pmtonly.noiserun.1574.0000.root'
 #opdata = RawDigitsOpData( fname )
 
+app = QtGui.QApplication([])
 opdisplay = OpDetDisplay( opdata )
 opdisplay.show()
 
