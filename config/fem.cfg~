@@ -1,0 +1,20 @@
+{
+	"config":{"discr0":{"threshold":"10", 
+		  	    "deadtime":"24", 
+	    	   	    "width":"7",
+			    "gate":"4",
+		   	    "delay":"4"},
+		  "discr1":{"threshold":"10",
+			    "deadtime":"24",
+			    "width":"7",
+			    "gate":"4",
+			    "delay":"4"},
+		  "discr3":{"threshold":"10",
+			    "deadtime":"24",
+			    "width":"7",
+			    "gate":"4",
+			    "delay":"4"}},
+	"precount":"2",
+	"discr0win":"6",
+	"spe":"pmtcalib_20150807.json"
+}	    
