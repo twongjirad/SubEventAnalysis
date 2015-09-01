@@ -10,9 +10,9 @@ from pylard.pylardisplay.opdetdisplay import OpDetDisplay
 from pylard.pylardata.wfopdata import WFOpData
 
 #sub-event code
-#from pysubevent.cfdiscriminator import cfdiscConfig, runCFdiscriminator
-from cfdiscriminator import cfdiscConfig, runCFdiscriminator
-from femsim import FEMconfig, runFEMsim, runFEMsimChannel
+from pysubevent.cfdiscriminator import cfdiscConfig, runCFdiscriminator
+#from cfdiscriminator import cfdiscConfig, runCFdiscriminator
+from pysubevent.femsim import FEMconfig, runFEMsim, runFEMsimChannel
 from nntrigger import formnntrigger
 from zotrigger import formzotrigger
 
