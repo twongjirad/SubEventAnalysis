@@ -1,8 +1,8 @@
 import os,sys
 import json
 import numpy as np
-import cfdiscriminator as cfd
-import pedestal as ped
+import pysubevent.cfdiscriminator as cfd
+import pysubevent.pedestal as ped
 import math 
 import cysubeventdisc as cyse
 

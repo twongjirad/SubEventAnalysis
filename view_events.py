@@ -10,7 +10,7 @@ from pylard.pylardata.rawdigitsopdata import RawDigitsOpData
 
 #sub-event code
 from subeventdisc import subeventdiscConfig, runSubEventDisc, runSubEventDiscChannel
-import  pedestal as ped
+import pysubevent.pedestal as ped
 
 app = QtGui.QApplication([])
 

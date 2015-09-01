@@ -189,10 +189,10 @@ def runSubEventTest( opdata, opdisplay ):
                 print "FEMCH ",ch," has subevent: spe=",chspe," gainfactor=",subeventlist[0].gainfactor
             
             # draw chsubevents
-            #for chsubevent in subeventlist:
-            #    pexp,pthresh = makeChSubEventPlot( chsubevent, chspe, displayslot )
-            #    products.append( { "plotitem":pexp,"femch":ch,"screen":"waveform"} )
-            #    products.append( { "plotitem":pthresh,"femch":ch,"screen":"waveform"} )
+            for chsubevent in subeventlist:
+                pexp,pthresh = makeChSubEventPlot( chsubevent, chspe, displayslot )
+                products.append( { "plotitem":pexp,"femch":ch,"screen":"waveform"} )
+                products.append( { "plotitem":pthresh,"femch":ch,"screen":"waveform"} )
         
         phitacc = pg.PlotCurveItem()
         phitacc.setData( x=range(0,len(subevent.hitacc)), y=subevent.hitacc, pen=(255,255,102,255) )
