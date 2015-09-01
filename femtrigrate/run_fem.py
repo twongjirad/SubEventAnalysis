@@ -6,7 +6,6 @@ import numpy as np
 import array
 
 # pylard
-from pylard.pylardisplay.opdetdisplay import OpDetDisplay
 from pylard.pylardata.wfopdata import WFOpData
 
 #sub-event code
@@ -16,14 +15,10 @@ from pysubevent.femsim import FEMconfig, runFEMsim, runFEMsimChannel
 from nntrigger import formnntrigger
 from zotrigger import formzotrigger
 
-app = QtGui.QApplication([])
-
-imv = pg.ImageView()
-imv.show()
-
 def run_fem():
     #  expects 'raw_wf_tree'
-    fname='/Users/twongjirad/working/uboone/data/FlasherData_080715/wf_run004.root'
+    #fname='/Users/twongjirad/working/uboone/data/FlasherData_080715/wf_run004.root'
+    fname='../wf_run001.root'
 
     femconfig = FEMconfig( os.environ["SUBEVENTDATA"]+"/fem.cfg" )
     opdata = WFOpData( fname )

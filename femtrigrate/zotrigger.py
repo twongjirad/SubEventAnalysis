@@ -32,7 +32,7 @@ def formzotrigger( femchtriggers, startwin, endwin, verbose=0 ):
                 continue # no triggers on this channel, move on
             ith_pos = 0
             neighbors = getZorderNeighbors( femch, zneighbors )
-            print "FEMCH=",femch," NEIGHBOORS(",zneighbors,")=",neighbors
+            #print "FEMCH=",femch," NEIGHBOORS(",zneighbors,")=",neighbors
             coinset = [femch]
             gatesum = np.zeros( beamsamples, dtype=np.int )
             gatesum[:] += femchtriggers["discr1"][startwin:endwin,femch]
