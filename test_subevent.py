@@ -10,8 +10,8 @@ from pylard.pylardata.rawdigitsopdata import RawDigitsOpData
 
 #sub-event code
 from subeventdisc import subeventdiscConfig, runSubEventDisc, runSubEventDiscChannel, SubEvent, makeSubEventAccumulators, formSubEvents
-import pedestal as ped
-import pmtcalib as spe
+import pysubevent.pedestal as ped
+import pysubevent.pmtcalib as spe
 
 from ROOT import *
 
