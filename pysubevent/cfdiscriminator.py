@@ -20,13 +20,13 @@ class cfdiscConfig:
             
     def loadFromFile( self, configfile ):
         f = open( configfile )
-        #s = f.readlines()
         jconfig = json.load( f )
-        self.threshold = int(jconfig['config'][self.discrname]['threshold'])  # threshold
-        self.deadtime  = int(jconfig['config'][self.discrname]['deadtime'])   # deadtme
-        self.delay     = int(jconfig['config'][self.discrname]['delay'])      # delay
-        self.width     = int(jconfig['config'][self.discrname]['width'])      # sample width to find max ADC
-        self.gate      = int(jconfig['config'][self.discrname]['gate'])       # coincidence gate
+        self.threshold   = int(jconfig['config'][self.discrname]['threshold'])  # threshold
+        self.thresholdpe = float(jconfig['config'][self.discrname]['threshold'])  # threshold in pe
+        self.deadtime    = int(jconfig['config'][self.discrname]['deadtime'])   # deadtme
+        self.delay       = int(jconfig['config'][self.discrname]['delay'])      # delay for calculating diff
+        self.width       = int(jconfig['config'][self.discrname]['width'])      # sample width to find max ADC
+        self.gate        = int(jconfig['config'][self.discrname]['gate'])       # coincidence gate
         f.close()
 
 def runCFdiscriminator( waveform, config ):
@@ -37,25 +37,7 @@ def runCFdiscriminator( waveform, config ):
     config: cfdiscConfig instance
     """
 
-#     diff = np.zeros( len(waveform), dtype=np.float )
-#     t_fire = []
-#     amp_fire = []
-#     maxt_fire = []
-#     last_fire = -1
-#     for tdc in xrange( int(config.delay), len(waveform)-int(config.delay) ):
-#         diff[tdc] = waveform[tdc]-waveform[tdc+int(config.delay)]
-
-#     # determine time
-#     for t in xrange(0,len(waveform)):
-#         if diff[t]>config.threshold and ( len(t_fire)==0 or (len(t_fire)>0 and t_fire[-1]+config.deadtime<t) ):
-#             t_fire.append( t-config.delay )
-#     # determine max amp
-#     for trig in t_fire:
-#         amp_fire.append( np.max( waveform[trig:np.minimum( len(waveform), trig+config.width )] )  )
-#         maxt_fire.append( trig+np.argmax( waveform[trig:np.minimum( len(waveform), trig+config.width )] ) )
-
-#     out_old = zip( t_fire, amp_fire, maxt_fire )
-
+    # confirmed that cythonized code produces same output (2015/08/30)
     out = cycfd.runCFdiscriminator( waveform, config.delay, config.threshold, config.deadtime, config.width )
 
     return out

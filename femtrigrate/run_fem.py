@@ -20,26 +20,46 @@ def run_fem():
     #fname='/Users/twongjirad/working/uboone/data/FlasherData_080715/wf_run004.root'
     fname='../wf_run001.root'
 
-    femconfig = FEMconfig( os.environ["SUBEVENTDATA"]+"/fem.cfg" )
+    femconfig = FEMconfig( os.environ["SUBEVENTDATA"]+"/fem.json" )
     opdata = WFOpData( fname )
 
     out = rt.TFile( "output_femsim_nnhits.root", "RECREATE" )
     eventid = array.array( 'i', [0] )  # event number
-    maxhits = array.array( 'i', [0] )  # max hits from trigger analysis
     winid   = array.array( 'i', [0] )  # window number (split total samples in 1.6 us chunks)
-    maxpe   = array.array( 'i', [0] )    
+    maxhits = array.array( 'i', [0] )  # max hits from trigger analysis
+    maxdiff   = array.array( 'i', [0] )    
+    maxadc    = array.array( 'i', [0] )    
     nnmaxhits = array.array( 'i', [0]*6 )
+    nnmaxdiff = array.array( 'i', [0]*6 )
+    nnmaxadc  = array.array( 'i', [0]*6 )
     zomaxhits = array.array( 'i', [0]*6 )
-    chtrig = array.array( 'i', [0]*36 )
+    zomaxdiff = array.array( 'i', [0]*6 )
+    zomaxadc  = array.array( 'i', [0]*6 )
+    numchtrigs = array.array( 'i', [0]*36 )
+    chmaxdiff = array.array( 'i', [0]*36 )
+    chmaxadc = array.array( 'i', [0]*36 )
+
 
     tree = rt.TTree( "fem", "FEM simulation output" )
+
     tree.Branch( 'eventid', eventid, 'eventid/I' )
-    tree.Branch( 'maxhits', maxhits, 'maxhits/I' )
     tree.Branch( 'winid', winid, 'winid/I' )
-    tree.Branch( 'maxpe', maxpe, 'maxpe/I' )
-    tree.Branch( 'chtrig', chtrig, 'chtrig[32]/I' )
-    tree.Branch( 'nnmaxhits', nnmaxhits, 'nnmaxhits[6]/I' )
-    tree.Branch( 'zomaxhits', zomaxhits, 'zomaxhits[6]/I' )
+
+    tree.Branch( 'maxhits', maxhits, 'maxhits/I' )    
+    tree.Branch( 'maxdiff', maxdiff, 'maxdiff/I' )
+    tree.Branch( 'maxadc', maxadc, 'maxadc/I' )
+
+    tree.Branch( 'nnmaxhits', nnmaxhits, 'nnmaxhits[6]/I' )    
+    tree.Branch( 'nnmaxdiff', nnmaxdiff, 'nnmaxdiff[6]/I' )
+    tree.Branch( 'nnmaxadc', nnmaxadc, 'nnmaxadc[6]/I' )
+
+    tree.Branch( 'zomaxhits', zomaxhits, 'zomaxhits[6]/I' )    
+    tree.Branch( 'zomaxdiff', zomaxdiff, 'zomaxdiff[6]/I' )
+    tree.Branch( 'zomaxadc', zomaxadc, 'zomaxadc[6]/I' )
+
+    tree.Branch( 'numchtrigs', numchtrigs, 'numchtrigs[36]/I' )
+    tree.Branch( 'chmaxdiff', chmaxdiff, 'chmaxdiff[36]/I' )
+    tree.Branch( 'chmaxadc', chmaxadc, 'chmaxadc[36]/I' )
 
     beamwin = 1600.0  # 1.6 microseconds
     beamsamples = int(beamwin/15.625)
@@ -48,7 +68,7 @@ def run_fem():
     more = opdata.getEvent( eventid[0] )
 
     while more:
-        trigs, pes, femchtriggers = runFEMsim( opdata.getData(slot=5), femconfig, maxch=32 )
+        trigs, maxadcs, maxdiff, femchtriggers, femchmaxadcs, femchdiffs  = runFEMsim( opdata.getData(slot=5), femconfig, maxch=32 )
         nwindows = len(trigs["discr1"])/(beamsamples+1)
         for iwin in xrange(0,nwindows):
             start = iwin*beamsamples
@@ -56,25 +76,30 @@ def run_fem():
 
             # -- basic FEM trigger --
             maxhits[0] = np.max( trigs["discr1"][start:end] )
-            maxpe[0] = np.max( pes["discr1"][start:end] )
+            maxdiff[0] = np.max( maxdiff["discr1"][start:end] )
+            maxadc[0] = np.max( maxadcs["discr1"][start:end] )
 
             # -- discr fires in each channel -- 
             for ch in xrange(0,32):
                 #print "CH ",ch,": ",femchtriggers["discr1"][start:end,ch]
-                chtrig[ch] = np.max( femchtriggers["discr1"][start:end,ch] )
+                numchtrigs[ch] = np.max( femchtriggers["discr1"][start:end,ch] )
+                chmaxdiff[ch] = np.max( femchdiffs["discr1"][start:end,ch] )
+                chmaxadc[ch] = np.max( femchmaxadcs["discr1"][start:end,ch] )
             #print "------------------------------------------------------------"
 
             # --- local nearest neighbors triggers (skip paddles) ---
-            nnresults = formnntrigger( femchtriggers, start, end, verbose=0 )
+            nnresults = formnntrigger( femchtriggers, femchdiffs, femchmaxadcs, start, end, verbose=0 )
             for nn in xrange(1,6):
-                nnmaxhits[nn] = nnresults[nn]
+                nnmaxhits[nn] = nnresults["maxhits"][nn]
+                nnmaxdiff[nn] = nnresults["maxdiff"][nn]
+                nnmaxadc[nn]  = nnresults["maxadc"][nn]
 
-            zoresults = formzotrigger( femchtriggers, start, end, verbose=0 )
-            for nn in xrange(1,6):
-                if nn in zoresults:
-                    zomaxhits[nn] = zoresults[nn]
-                else:
-                    zomaxhits[nn] = 0
+            zoresults = formzotrigger( femchtriggers, femchdiffs, femchmaxadcs, start, end, verbose=0 )
+            for zo in xrange(1,6):
+                if zo in zoresults:
+                    zomaxhits[zo] = zoresults["maxhits"][zo]
+                    zomaxdiff[zo] = zoresults["maxdiff"][zo]
+                    zomaxadc[zo]  = zoresults["maxadc"][zo]
 
             # visualize window hits
             #imv.setImage( femchtriggers["discr1"][start:end,:] )
