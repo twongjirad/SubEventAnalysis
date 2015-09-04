@@ -68,7 +68,7 @@ def run_fem():
     more = opdata.getEvent( eventid[0] )
 
     while more:
-        trigs, maxadcs, maxdiff, femchtriggers, femchmaxadcs, femchdiffs  = runFEMsim( opdata.getData(slot=5), femconfig, maxch=32 )
+        trigs, maxadcs, femmaxdiff, femchtriggers, femchmaxadcs, femchdiffs  = runFEMsim( opdata.getData(slot=5), femconfig, maxch=32 )
         nwindows = len(trigs["discr1"])/(beamsamples+1)
         for iwin in xrange(0,nwindows):
             start = iwin*beamsamples
@@ -76,8 +76,10 @@ def run_fem():
 
             # -- basic FEM trigger --
             maxhits[0] = np.max( trigs["discr1"][start:end] )
-            maxdiff[0] = np.max( maxdiff["discr1"][start:end] )
+            maxdiff[0] = np.max( femmaxdiff["discr1"][start:end] )
             maxadc[0] = np.max( maxadcs["discr1"][start:end] )
+            if maxdiff[0]>100000:
+                print "event ",eventid[0]," maxdiff=",maxdiff[0]
 
             # -- discr fires in each channel -- 
             for ch in xrange(0,32):
@@ -111,7 +113,7 @@ def run_fem():
         eventid[0] += 1
         more = opdata.getEvent( eventid[0] )
         print "Event: ",eventid[0], more
-        if eventid[0]>=500:
+        if eventid[0]>=100:
             break
 
     tree.Write()
