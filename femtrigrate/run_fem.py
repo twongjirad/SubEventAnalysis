@@ -98,7 +98,7 @@ def run_fem():
 
             zoresults = formzotrigger( femchtriggers, femchdiffs, femchmaxadcs, start, end, verbose=0 )
             for zo in xrange(1,6):
-                if zo in zoresults:
+                if zo in zoresults["maxhits"]:
                     zomaxhits[zo] = zoresults["maxhits"][zo]
                     zomaxdiff[zo] = zoresults["maxdiff"][zo]
                     zomaxadc[zo]  = zoresults["maxadc"][zo]
