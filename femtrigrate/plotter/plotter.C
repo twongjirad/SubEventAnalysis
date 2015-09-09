@@ -29,7 +29,7 @@ using namespace std;
 void plotter() {
   
   //Grab the tree from the file
-  TFile* f = TFile::Open("output_femsim_nnhits.root");
+  TFile* f = TFile::Open("../output_femsim_nnhits.root");
   TTree* t = (TTree *)f->Get("fem");
 
   //Set the branches
