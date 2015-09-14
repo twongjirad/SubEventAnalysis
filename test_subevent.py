@@ -209,16 +209,47 @@ def runSubEventTest( opdata, opdisplay ):
 
 def run_subevent_finder():
     global opdata
-    for ievent in xrange(0,2000,75):
-        opdata.getEvent( ievent, slot=5 )
+
+
+    f = TFile("output_test_subeventfinder.root", "RECREATE" )
+    t = TTree( "subevent", "Subevent info" )
+    # variables
+    eventid = array.array('i',[0])
+    nsubevents = array.array('i',[0])
+    tpeak = array.array('i',[0]*20)
+    hitmax = array.array('i',[0]*20)
+    pemax = array.array('f',[0]*20)
+
+    ievent = 0
+    ok = opdata.getEntry( ievent )
+    
+    while ok:
+
+        eventid[0] = ievent
         subevents = formSubEvents( opdata, config, pmtspe )
+        nsubevents[0] = len(subevents)
+
         if len(subevents)>0:
             print "found ",len(subevents)," subevents in event ",ievent
+            for n,subevent in enumerate(subevents):
+                if n>=20:
+                    break
+                tpeak[n] = subevent.tpeak
+                hitmax[n] = subevent.hitmax
+                pemax[n] = subevent.pemax
             #opdisplay.run_user_analysis.setChecked(True)
             #opdisplay.gotoEvent( ievent, slot=5 )
             #opdisplay.plotData() 
             #opdisplay.run_user_analysis.setChecked(False)
             #raw_input()
+        else:
+            for n in range(0,20):
+                tpeak[n] = 0
+                hitmax[n] = 0
+                pemax[n] = 0
+        t.Fill()
+        ok = opdata.getEvent( ievent, slot=5 )
+    t.Write()
 
 if __name__ == "__main__":
     print "batch mode"

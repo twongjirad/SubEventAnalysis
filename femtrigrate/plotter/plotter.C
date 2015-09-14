@@ -29,7 +29,7 @@ using namespace std;
 void plotter() {
   
   //Grab the tree from the file
-  TFile* f = TFile::Open("../output_femsim_nnhits.root");
+  TFile* f = TFile::Open("../output_femsim_nnhits_run2194.root");
   TTree* t = (TTree *)f->Get("fem");
 
   //Set the branches
@@ -61,8 +61,8 @@ void plotter() {
   //all mode
   int total = 0; //Used to normalize histograms.
   TH1F* h1 = new TH1F("h1", "maxhits all", 25, 0, 25);
-  TH1F* h2 = new TH1F("h2", "maxdiff all", 60000, 0, 60000);
-  TH2F* h3 = new TH2F("h3", "2d all", 25, 0, 25, 20000, 0, 20000);
+  TH1F* h2 = new TH1F("h2", "maxdiff all", 1000, 0, 1000);
+  TH2F* h3 = new TH2F("h3", "2d all", 25, 0, 25, 1000, 0, 1000);
 
   //Set up drawing
   TCanvas* c1 = new TCanvas("c", "c", 0, 0, 1600, 800);
@@ -83,14 +83,14 @@ void plotter() {
   for (Int_t i = 0; i < nentries; i++) {
     t->GetEntry(i);
     total++;
-    for (int j = 0; j < maxhits + 1; j++) {
+    for (int j = 0; j < maxhits; j++) {
       h1->Fill(j);
     }
-    for (int j = 0; j < maxdiff + 1; j++) {
+    for (int j = 0; j < maxdiff; j++) {
       h2->Fill(j);
     }
-    for (int j = 0; j < maxhits + 1; j++) {
-      for (int k = 0; k < maxdiff + 1; k++) {
+    for (int j = 0; j < maxhits; j++) {
+      for (int k = 0; k < maxdiff; k++) {
         h3->Fill(j, k);
       }
     }
@@ -124,7 +124,7 @@ void plotter() {
 
   //Loop over groups
   for (Int_t group = 1; group < 6; group++) {
-#if 1
+#if 0
     //nn mode
     int totalnn = 0;
     stringstream nnHitName, nnDiffName, nnAllName;
@@ -174,7 +174,7 @@ void plotter() {
     h6->Write();
 #endif
 
-#if 1
+#if 0
     //zo mode
     int totalzo = 0;
     stringstream zoHitName, zoDiffName, zoAllName;

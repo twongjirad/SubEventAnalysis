@@ -339,6 +339,13 @@ def formSubEvents( opdata, config, pmtspe, retpostwfm=False, hgslot=5, lgslot=6,
             if pepeak > pethresh:
                 se.peacc[ np.maximum(0,tpeak-2) : np.minimum( len(peacc),  tpeak+2) ] =  peacc[ np.maximum(0,tpeak-2) : np.minimum( len(peacc),  tpeak+2) ]
             print "number collected in new subevent: ",ncollected," pepeak=",pepeak," nhits=",nhits," tpeak=",tpeak
+
+            # save some info
+            se.tpeak = tpeak
+            se.nchsubevents = ncollected # 22447
+            se.hitmax = np.max( se.hitacc )
+            se.pemax  = np.max( se.pemax )
+
             if ncollected==0:
                 break
             else:

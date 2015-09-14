@@ -3,7 +3,7 @@ import json
 import numpy as np
 
 # cythonized function
-import cycfdiscriminator as cycfd
+import pysubevent.cycfdiscriminator as cycfd
 
 # Single discriminator
 
@@ -22,7 +22,7 @@ class cfdiscConfig:
         f = open( configfile )
         jconfig = json.load( f )
         self.threshold   = int(jconfig['config'][self.discrname]['threshold'])  # threshold
-        self.thresholdpe = float(jconfig['config'][self.discrname]['threshold'])  # threshold in pe
+        self.thresholdpe = float(jconfig['config'][self.discrname]['thresholdpe'])  # threshold in pe
         self.deadtime    = int(jconfig['config'][self.discrname]['deadtime'])   # deadtme
         self.delay       = int(jconfig['config'][self.discrname]['delay'])      # delay for calculating diff
         self.width       = int(jconfig['config'][self.discrname]['width'])      # sample width to find max ADC
@@ -38,7 +38,14 @@ def runCFdiscriminator( waveform, config ):
     """
 
     # confirmed that cythonized code produces same output (2015/08/30)
-    out = cycfd.runCFdiscriminator( waveform, config.delay, config.threshold, config.deadtime, config.width )
+    # cythonized
+    outcy = cycfd.runCFdiscriminator( waveform, config.delay, config.threshold, config.deadtime, config.width )
+    #outnative = cycfd.pyRunCFdiscriminatorCPP( waveform, config.delay, config.threshold, config.deadtime, config.width )
+    #print "cythonized: ",outcy
+    #print "native: ",outnative
+    #out = outnative
+    out = outcy
+    #raw_input()
 
     return out
         
