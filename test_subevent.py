@@ -14,8 +14,9 @@ import pysubevent.pedestal as ped
 import pysubevent.pmtcalib as spe
 
 from ROOT import *
+import array
 
-app = QtGui.QApplication([])
+#app = QtGui.QApplication([])
 
 HIGHFEM = 5
 LOWFEM  = 6
@@ -23,16 +24,17 @@ pmtspe = spe.getCalib( "config/pmtcalib_20150807.json" )
 
 #  expects 'raw_wf_tree'
 #fname='/Users/twongjirad/working/uboone/data/FlasherData_080115/wf_run001.root'
-fname='/Users/twongjirad/working/uboone/data/FlasherData_080715/wf_run004.root'
+#fname='/Users/twongjirad/working/uboone/data/FlasherData_080715/wf_run004.root'
 #fname='/Users/twongjirad/working/uboone/data/FlasherData_080115/wf_run005.root'
-opdata = WFOpData( fname )
+#opdata = WFOpData( fname )
 
 #fname='/Users/twongjirad/working/uboone/data/DAQTest_081315/raw_digits_1387.root'
 #fname='/Users/twongjirad/working/uboone/data/LightLeakData/20150818/rawdigits.pmtonly.noiserun.1573.0000.root'
-#opdata = RawDigitsOpData( fname )
+fname="/Users/twongjirad/working/uboone/data/pmttriggerdata/run2213_pmtrawdigits.root"
+opdata = RawDigitsOpData( fname )
 
-opdisplay = OpDetDisplay( opdata )
-opdisplay.show()
+#opdisplay = OpDetDisplay( opdata )
+#opdisplay.show()
 
 femch = 9
 
@@ -48,6 +50,7 @@ femch = 9
 chbych = False
 drawchsubevents = True
 config = subeventdiscConfig( "discr0", "subevent.cfg" )
+
 
 def makeChSubEventPlot( chsubevent, chspe,displayslot ):
     tx = []
@@ -210,7 +213,6 @@ def runSubEventTest( opdata, opdisplay ):
 def run_subevent_finder():
     global opdata
 
-
     f = TFile("output_test_subeventfinder.root", "RECREATE" )
     t = TTree( "subevent", "Subevent info" )
     # variables
@@ -219,9 +221,14 @@ def run_subevent_finder():
     tpeak = array.array('i',[0]*20)
     hitmax = array.array('i',[0]*20)
     pemax = array.array('f',[0]*20)
+    t.Branch( "eventid", eventid, "eventid/I" )
+    t.Branch( "nsubevents", nsubevents, "nsubevents/I" )
+    t.Branch( "tpeak", tpeak, "tpeak[20]/I" )
+    t.Branch( "hitmax", hitmax, "hitmax[20]/I" )
+    t.Branch( "pemax", pemax, "pemax[20]/F" )
 
-    ievent = 0
-    ok = opdata.getEntry( ievent )
+    ievent = 1
+    ok = opdata.getEvent( ievent )
     
     while ok:
 
@@ -235,7 +242,7 @@ def run_subevent_finder():
                 if n>=20:
                     break
                 tpeak[n] = subevent.tpeak
-                hitmax[n] = subevent.hitmax
+                hitmax[n] = int(subevent.hitmax)
                 pemax[n] = subevent.pemax
             #opdisplay.run_user_analysis.setChecked(True)
             #opdisplay.gotoEvent( ievent, slot=5 )
@@ -248,14 +255,17 @@ def run_subevent_finder():
                 hitmax[n] = 0
                 pemax[n] = 0
         t.Fill()
+        ievent += 1
         ok = opdata.getEvent( ievent, slot=5 )
+        if ievent>=50:
+            break
     t.Write()
 
 if __name__ == "__main__":
     print "batch mode"
     import cProfile
-    #cProfile.run('run_subevent_finder()')
-    run_subevent_finder()
+    cProfile.run('run_subevent_finder()')
+    #run_subevent_finder()
 else:
     print "interactive mode"
     opdisplay.addUserAnalysis( runSubEventTest )

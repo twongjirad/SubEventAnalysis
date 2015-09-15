@@ -5,6 +5,7 @@ import pysubevent.cfdiscriminator as cfd
 import pysubevent.pedestal as ped
 import math 
 import cysubeventdisc as cyse
+from subevent import ChannelSubEvent, SubEvent
 
 # Single discriminator
 class subeventdiscConfig:
@@ -28,32 +29,6 @@ class subeventdiscConfig:
         self.pedsamples   = 100
         self.pedmaxvar    = 1.0
         f.close()
-
-class ChannelSubEvent:
-    """
-    SubEvent Information on on channel. Instances will be grouped to form a subevent
-    """
-    def __init__( self, ch, tstart, tend, tmax, maxamp, expectation ):
-        self.ch = ch
-        self.tstart = tstart
-        self.tend   = tend
-        self.tmax   = tmax
-        self.maxamp = maxamp
-        self.expectation = expectation
-
-class SubEvent:
-    """
-    SubEvent information
-    """
-    def __init__( self, chsubeventdict ):
-        """
-        inputs:
-        ------
-        chsubevents: list of ChannelSubEvent instances or None
-        config: instance of subeventdiscConfig, containing configuration parameters
-        """
-        self.chsubeventdict = chsubeventdict
-            
 
 def prob_exp( a, b, alpha ):
     return np.exp( -1.0*alpha*a) - np.exp( -1.0*alpha*b )
@@ -92,6 +67,26 @@ def response( t, sig, maxamp, maxt, fastconst, slowconst ):
     #print t, f, s
     return f+s
 
+
+#         # old response code
+# def calcExpectation(): # note, not implemented. just kept here for reference
+#         rising = True
+#         expectation_old = []
+#         for t in xrange(np.maximum(0,tmax-20), len(waveform)):
+#            n = (t-tmax)
+#            fx = response( n*cfdconf.nspersample, spe_sigma, (maxamp-cfdconf.pedestal), tmax, config.fastconst, config.slowconst )
+#            tend = t
+#            if rising and fx>20:
+#                rising = False
+#            elif not rising and ( fx<0.1 ): # this should be config
+#                break
+#            #elif t-tmax>200:
+#            #    break
+               
+#            expectation_old.append( (t,fx) )
+#            #print "t=",t,": n=",n," exp=",expectation[-1]
+
+
 def findOneSubEvent( waveform, cfdconf, config, ch ):
     """
     waveform: numpy array
@@ -117,25 +112,15 @@ def findOneSubEvent( waveform, cfdconf, config, ch ):
         tend = tstart
         spe_sigma = 4.0*cfdconf.nspersample
 
-#         # old response code
-#         rising = True
-#         expectation_old = []
-#         for t in xrange(np.maximum(0,tmax-20), len(waveform)):
-#            n = (t-tmax)
-#            fx = response( n*cfdconf.nspersample, spe_sigma, (maxamp-cfdconf.pedestal), tmax, config.fastconst, config.slowconst )
-#            tend = t
-#            if rising and fx>20:
-#                rising = False
-#            elif not rising and ( fx<0.1 ): # this should be config
-#                break
-#            #elif t-tmax>200:
-#            #    break
-               
-#            expectation_old.append( (t,fx) )
-#            #print "t=",t,": n=",n," exp=",expectation[-1]
+        # python
+        #expectation = calcExpectation()
 
         # cythonized!
-        expectation = cyse.calcScintResponse( np.maximum(0,tmax-20), len(waveform), tmax, spe_sigma, (maxamp-cfdconf.pedestal), config.fastconst, config.slowconst, cfdconf.nspersample )
+        #expectation = cyse.calcScintResponse( np.maximum(0,tmax-20), len(waveform), tmax, spe_sigma, (maxamp-cfdconf.pedestal), config.fastconst, config.slowconst, cfdconf.nspersample )
+
+        # native c++
+        expectation = cyse.pyCalcScintResponse( np.maximum(0,tmax-20), len(waveform), tmax, spe_sigma, (maxamp-cfdconf.pedestal), config.fastconst, config.slowconst, cfdconf.nspersample )
+        
         tend = tstart + len(expectation)
 
         #print expectation[:10]
@@ -155,6 +140,7 @@ def runSubEventDiscChannel( waveform, config, ch, retpostwfm=False ):
     (4) Define start and end this way
     (5) Subtract off subevent
     (6) Repeat (1)-(5) until all disc. peaks are below threshold
+    * Note this is time hog now *
     """
 
 
@@ -344,7 +330,7 @@ def formSubEvents( opdata, config, pmtspe, retpostwfm=False, hgslot=5, lgslot=6,
             se.tpeak = tpeak
             se.nchsubevents = ncollected # 22447
             se.hitmax = np.max( se.hitacc )
-            se.pemax  = np.max( se.pemax )
+            se.pemax  = np.max( se.peacc )
 
             if ncollected==0:
                 break

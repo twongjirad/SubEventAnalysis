@@ -1,6 +1,7 @@
 import os,sys
 import json
 import numpy as np
+from collections import Sequence
 
 # cythonized function
 import pysubevent.cycfdiscriminator as cycfd
@@ -29,6 +30,44 @@ class cfdiscConfig:
         self.gate        = int(jconfig['config'][self.discrname]['gate'])       # coincidence gate
         f.close()
 
+class CFDFire:
+    def __init__( self, t_fire=None, maxaxmp_fire=None, maxt_fire=None, diff_fire=None ):
+        self.setData( t_fire, maxaxmp_fire, maxt_fire, diff_fire )
+    def setData( self, t_fire=None, maxamp_fire=None, maxt_fire=None, diff_fire=None ):
+        if t_fire is not None:
+            self.tfire = t_fire
+        if maxamp_fire is not None:
+            self.maxamp = maxamp_fire
+        if maxt_fire is not None:
+            self.tmax = maxt_fire
+        if diff_fire is not None:
+            self.diff = diff_fire
+
+class CFDFireVector(Sequence):
+    def __init__(self):
+        self.fires = []
+
+    @classmethod
+    def from_vectors( cls, vec_tfire, vec_maxamp, vec_tmax, vec_diff ):
+        newvec = cls()
+        for (tfire,maxamp, tmax, diff) in zip( vec_tfire, vec_maxamp, vec_tmax, vec_diff ):
+            newvec.fires.append( CFDFire( tfire,maxamp, tmax, diff ) )
+        return newvec
+    @classmethod
+    def from_vector_tuple( cls, data ):
+        newvec = cls()
+        for (tfire,maxamp, tmax, diff) in data:
+            newvec.fires.append( CFDFire( tfire,maxamp, tmax, diff ) )
+        return newvec
+
+    def getNumFires(self):
+        return len(self.fires)
+    def __getitem__(self,index):
+        return self.fires[index]
+    def __len__(self):
+        return self.getNumFires()
+        
+
 def runCFdiscriminator( waveform, config ):
     """
     inputs
@@ -40,12 +79,11 @@ def runCFdiscriminator( waveform, config ):
     # confirmed that cythonized code produces same output (2015/08/30)
     # cythonized
     outcy = cycfd.runCFdiscriminator( waveform, config.delay, config.threshold, config.deadtime, config.width )
-    #outnative = cycfd.pyRunCFdiscriminatorCPP( waveform, config.delay, config.threshold, config.deadtime, config.width )
+    #outnative = cycfd.pyRunCFdiscriminatorCPP( waveform.astype(np.float), config.delay, config.threshold, config.deadtime, config.width )
     #print "cythonized: ",outcy
     #print "native: ",outnative
-    #out = outnative
-    out = outcy
-    #raw_input()
+    out = CFDFireVector.from_vector_tuple( outcy )
+    #out = CFDFireVector.from_vector_tuple( outnative )
 
     return out
         
