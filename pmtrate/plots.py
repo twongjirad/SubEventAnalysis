@@ -43,16 +43,23 @@ def makeplots( inputfile, outdir ):
     pulsetree = TChain("pulsetree")
     pulsetree.Add( inputfile )
 
+    eventcut = "chmax<100"
+    pulsecut = "chmaxamp<100 && amp>6"
 
     # 2D trigs per event vs. channel
+    NBINSRATE = 25
+    binwidth = 1.0/(1500.0*15.625e-6)
+    MINRATE = -0.5*binwidth
+    MAXRATE = (NBINSRATE+0.5)*binwidth
+
     c = TCanvas("c","c",800, 600)
     c.Draw()
-    hrate2D = TH2D( "rate2d", ";FEM channel; rate (kHz)", NCHANS, 0, NCHANS, 20, 0, 800 )
+    hrate2D = TH2D( "rate2d", ";FEM channel; rate (kHz)", NCHANS, 0, NCHANS, NBINSRATE+1, MINRATE, MAXRATE )
     hrates = {}
     for ich in range(0,NCHANS):
         hname = "ratech%d"%(ich)
-        hrates[ich] = TH1D( hname, "", 20, 0, 800 )
-        eventtree.Draw("nfires[%d]/(1500.0*15.625e-6)>>%s"%(ich,hname),"chmax<100")
+        hrates[ich] = TH1D( hname, "", NBINSRATE+1, MINRATE, MAXRATE )
+        eventtree.Draw("nfires[%d]/(1500.0*15.625e-6)>>%s"%(ich,hname),eventcut)
         c.Update()
         #raw_input()
         for i in range(2,hrates[ich].GetNbinsX()+1):
@@ -60,7 +67,24 @@ def makeplots( inputfile, outdir ):
     hrate2D.Draw("COLZ")
     c.SaveAs( "%s/rate_vs_ch.pdf"%(outdir) )
     c.Update()
-    raw_input()
+    #raw_input()
+
+    # pusles
+    NBINSPULSES = NBINSRATE
+    hpulses2D = TH2D( "pulses2d", ";FEM channel; pulses in readout window", NCHANS, 0, NCHANS, NBINSPULSES, 0, NBINSPULSES )
+    hpulsess = {}
+    for ich in range(0,NCHANS):
+        hname = "pulsesch%d"%(ich)
+        hpulsess[ich] = TH1D( hname, "", NBINSPULSES, 0, NBINSPULSES )
+        eventtree.Draw("nfires[%d]>>%s"%(ich,hname),eventcut)
+        c.Update()
+        #raw_input()
+        for i in range(2,hpulsess[ich].GetNbinsX()+1):
+            hpulses2D.SetBinContent( ich+1, i, hpulsess[ich].GetBinContent( i ) )
+    hpulses2D.Draw("COLZ")
+    c.SaveAs( "%s/pulses_vs_ch.pdf"%(outdir) )
+    c.Update()
+    #raw_input()
     
     # 2D amp per pulse for each channel
     hamp2D = TH2D( "amp2d", ";FEM channel; amp (ADC counts)", NCHANS, 0, NCHANS, 60, 0, 60)
@@ -68,7 +92,7 @@ def makeplots( inputfile, outdir ):
     for ich in range(0,NCHANS):
         hname = "ampch%d"%(ich)
         hamps[ich] = TH1D( hname, "", 60, 0, 60 )
-        pulsetree.Draw("amp>>%s"%(hname),"chmaxamp<100 && ch==%d"%(ich))
+        pulsetree.Draw("amp>>%s"%(hname),"(%s) && ch==%d"%(pulsecut,ich))
         c.Update()
         #raw_input()
         for i in range(1,hamps[ich].GetNbinsX()+1):
@@ -76,7 +100,24 @@ def makeplots( inputfile, outdir ):
     hamp2D.Draw("COLZ")
     c.SaveAs( "%s/amp_vs_ch.pdf"%(outdir) )
     c.Update()
-    raw_input()
+    #raw_input()
 
 if __name__ == "__main__":
-    makeplots( "run1574_lightsoff.root", "figs/run1574_lightsoff" )
+
+    input = "pmtratestudy/run1536.root"
+    output = "pmtratestudy/figs/run1536"
+    if len(sys.argv)==3:
+        input = sys.argv[1]
+        output = sys.argv[2]
+
+    #files = os.listdir( "pmtratestudy" )
+    #for f in files:
+    #    if "pmtrawdigits" not in f.strip():
+    #        continue
+    #    input = "pmtratestudy/"+f.strip()
+    #    output = "figs/"+f.strip()[:-len(".root")]
+    #    makeplots( input, output)
+
+    makeplots( input, output)
+    #makeplots( "test.root", "figs/test" )
+

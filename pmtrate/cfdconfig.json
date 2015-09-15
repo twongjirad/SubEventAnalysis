@@ -1,7 +1,7 @@
 {
-  "config":{"disc0":{"threshold":"3","thresholdpe":"0.25","deadtime":"15","delay":"4","width":"10","gate":"10"},
-  	    "disc1":{"threshold":"5","thresholdpe":"0.5","deadtime":"15","delay":"4","width":"10","gate":"10"},
-      	    "disc3":{"threshold":"5","thresholdpe":"0.5","deadtime":"15","delay":"4","width":"10","gate":"10"}}
+  "config":{"disc0":{"threshold":"3","thresholdpe":"0.25","deadtime":"15","delay":"4","width":"15","gate":"10"},
+  	    "disc1":{"threshold":"6","thresholdpe":"0.5","deadtime":"20","delay":"4","width":"20","gate":"10"},
+      	    "disc3":{"threshold":"6","thresholdpe":"0.5","deadtime":"20","delay":"4","width":"20","gate":"10"}}
 }
                   
 	    

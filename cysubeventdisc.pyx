@@ -1,3 +1,5 @@
+# cython: profile=True
+
 import numpy as np
 cimport numpy as np
 import math
@@ -59,3 +61,16 @@ cpdef calcScintResponse( int tstart, int tend, int maxt, float sig, float maxamp
     #return fastfraction*f + slowfraction*s
     #print t, f, s
     return expect
+
+# NATIVE C+++
+from libcpp.vector cimport vector
+
+cdef extern from "pysubevent/scintresponse.hh" namespace "cpysubevent":
+   cdef void calcScintResponseCPP( vector[ float ]& fexpectation, int tstart, int tend, int maxt, float sig, float maxamp, float fastconst, float slowconst, float nspertick )
+                                   
+
+cpdef pyCalcScintResponse( int tstart, int tend, int maxt, float sig, float maxamp, float fastconst, float slowconst, float nspertick ):
+    cdef vector[float] amp
+    calcScintResponseCPP( amp, tstart, tend, maxt, sig, maxamp, fastconst, slowconst, nspertick )
+    tdc = range(tstart,tend)
+    return zip(tdc,amp)

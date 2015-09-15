@@ -3,6 +3,7 @@ import ROOT as rt
 import numpy as np
 from array import array
 
+
 # pylard
 from pyqtgraph.Qt import QtGui, QtCore
 import pyqtgraph as pg
@@ -19,7 +20,7 @@ NCHANS = 32
 cfdsettings = cfdiscConfig("disc1","cfdconfig.json")
 
 
-def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False ):
+def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False, first_event=0 ):
     # check that the data file type was selected
     if wffile==False and rawdigitfile==False:
         print "Select either wffile or rawdigitfile"
@@ -61,15 +62,18 @@ def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False ):
         opdisplay = OpDetDisplay( opdata )
         opdisplay.show()
 
-    for ievent in range(1,nevents+1):
+    for ievent in range(first_event,first_event+nevents+1):
         if ievent%50==0:
             print "Event: ",ievent
         event[0] = ievent
 
         if PLOT:
-            opdisplay.gotoEvent( ievent )
+            more = opdisplay.gotoEvent( ievent )
         else:
-            opdata.getEvent( ievent )
+            more = opdata.getEvent( ievent )
+        if not more:
+            print "not more"
+            break
 
         # for each waveform get the number of cosmic discs
         echmax[0] = 0
@@ -89,11 +93,13 @@ def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False ):
             pmaxamp[0] = 0
             
             #print femch,len(discs),discs
+            #print discs,len(discs)
             for idisc,disc in enumerate(discs):
-                tdisc = disc[0]
+                #print disc
+                tdisc = disc.tfire
                 pmaxamp[0] = np.max( wfm[tdisc:tdisc+cfdsettings.deadtime]-ped[0] )
                 if idisc>0:
-                    pdt[0] = tdisc - discs[idisc-1][0]
+                    pdt[0] = tdisc - discs[idisc-1].tfire
                 if PLOT:
                     discfire = pg.PlotCurveItem()
                     x = np.linspace( 15.625*(tdisc-5), 15.625*(tdisc+5+cfdsettings.deadtime), cfdsettings.deadtime+10 )
@@ -103,16 +109,36 @@ def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False ):
                     opdisplay.addUserWaveformItem( discfire, femch )
                 pulsetree.Fill()
         if PLOT:
+            print "please enjoy plot"
             raw_input()
         eventtree.Fill()
     eventtree.Write()
     pulsetree.Write()
 
+
+def runloop():
+    for f in os.listdir( "../../data/pmtratedata/" ):
+        if ".root" not in f:
+            continue
+        print f
+        input = "../../data/pmtratedata/"+f.strip()
+        output = "pmtratestudy/"+f.strip()
+        calc_rates( input, 10000, output, rawdigitfile=True, wffile=False )
+    
         
 if __name__ == "__main__":
     app = QtGui.QApplication([])
     #input = "../../data/pmtbglight/run2228_pmtrawdigits_subrun0.root"
-    input = "../../data/pmttriggerdata/run1574_pmtrawdigits.root"
-    output = "run1574_lightsoff.root"
+    #input = "../../data/pmttriggerdata/run2290_subrun0.root"
+    input = "../../data/pmtratedata/run1536_pmtrawdigits.root"
     #output = "test.root"
-    calc_rates( input, 200, output, rawdigitfile=True, wffile=False )
+    output = "pmtratestudy/run1536.root"
+
+    if len(sys.argv)==3:
+        input = sys.argv[1]
+        output = sys.argv[2]
+
+    calc_rates( input, 500, output, rawdigitfile=True, wffile=False, first_event=1 )
+
+    #import cProfile
+    #cProfile.run("calc_rates(\"%s\",200,\"%s\",rawdigitfile=True,wffile=False)"%(input,output))
