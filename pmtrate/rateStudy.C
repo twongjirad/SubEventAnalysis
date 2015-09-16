@@ -1,5 +1,6 @@
 #include<iostream>
 #include<fstream>
+#include<vector>
 #include<sstream>
 
 #include"TH1F.h"
@@ -12,16 +13,13 @@
 
 using namespace std;
 
+vector<double> parse(string s);
+
 void rateStudy() {
-  const int NRUNS = 13;
+  const int NRUNS = 21;
   const int NCH = 32;
 
   TCanvas* c1 = new TCanvas("c1", "c1", 800, 600);
-
-  ifstream fin;
-  fin.open("runlist.txt");
-
-  string runNumber = "";
 
   TMultiGraph *mg = new TMultiGraph();
 
@@ -35,6 +33,11 @@ void rateStudy() {
                         28, 50, 51, 56, 58, 88, 99, 1, 208, 209,
                         218, 212, 210, 221, 224, 225, 226, 227, 228 };
 
+  ifstream fin;
+  fin.open("runlist.txt");
+
+  string line = "";
+
   for (int ch = 0; ch < NCH; ++ch) {
     Double_t x[NRUNS];
     Double_t y[NRUNS];
@@ -42,17 +45,20 @@ void rateStudy() {
     Double_t errY[NRUNS];
 
     int fileCounter = 0;
-    while(getline(fin, runNumber)) {
-      x[fileCounter] = fileCounter;
+    while(getline(fin, line)) {
+      vector<double> data = parse(line);
       stringstream filePath;
-      filePath << "pmtratestudy/run" << runNumber << ".root";
-
+      filePath << "pmtratestudy/run" << data[0] << ".root";
+      cout << "opening file at " << filePath.str() << endl;
       TFile* f = new TFile(filePath.str().c_str());
       TTree* t = (TTree *)f->Get("eventtree");
 
-      int nfires[NCH] = {0};
-      t->SetBranchAddress("nfires", &nfires);
+      x[fileCounter] = data[1];
 
+      int nfires[NCH] = {0};
+      int samples = 0;
+      t->SetBranchAddress("nfires", &nfires);
+      t->SetBranchAddress("samples", &samples);
       TH1F* h = new TH1F("h","hist", NCH, 0, NCH);
       
       int nentries = t->GetEntries();
@@ -60,9 +66,10 @@ void rateStudy() {
         t->GetEntry(entry);
         h->Fill(nfires[ch]);
       }
-      y[fileCounter] = h->GetMean() / (1500 * 15.625E-6);
-      errY[fileCounter] = h->GetMeanError() / (1500 * 15.625E-6);
-      cout << x[fileCounter] << ", " << y[fileCounter] << endl;
+      y[fileCounter] = h->GetMean() / ((samples - 1) * 15.625E-6);
+      errY[fileCounter] = h->GetMeanError() / ((samples - 1) * 15.625E-6);
+      cout << x[fileCounter] << ", " << y[fileCounter] 
+           << " | " << (samples - 1) << endl;
       f->Close();
       fileCounter++;
     } 
@@ -74,19 +81,8 @@ void rateStudy() {
     gr->GetXaxis()->SetTitle("Run Date");
     gr->GetYaxis()->SetTitle("Rate [kHz]");
 
-    ifstream din;
-    din.open("runinfo.txt");
-    string date;
-    int runCounter = 0;
-    while(getline(din, date)) {
-      int bin_index = gr->GetXaxis()->FindBin(x[runCounter]);
-      gr->GetXaxis()->SetBinLabel(bin_index, date.c_str());
-      runCounter++;
-    }
-    din.close();
-
     stringstream entryName, fileName;
-    entryName << ch;
+    entryName << "Channel" << ch;
     gr->SetTitle(entryName.str().c_str());
     fileName << "plots/" << ch << ".png";
     legend->AddEntry(gr, entryName.str().c_str());
@@ -98,11 +94,30 @@ void rateStudy() {
     fin.seekg(0, ios::beg);
   }
   mg->Draw("alp");
-  mg->GetXaxis()->SetTitle("Run #");
+  mg->GetXaxis()->SetTitle("Days since first run");
   mg->GetYaxis()->SetTitle("Rate [kHz]");
+  mg->SetTitle("All channels: Rate vs. Days since first Run");
 
   legend->Draw();
 
   c1->SaveAs("mg.pdf");
+}
+
+vector<double> parse(string s) {
+    string str = s;
+    vector<double> vect;
+
+    stringstream ss(str);
+
+    double d;
+
+    while (ss >> d) {
+        vect.push_back(d);
+
+        if (ss.peek() == ',') {
+            ss.ignore();
+        }
+    }
+    return vect;
 }
 
