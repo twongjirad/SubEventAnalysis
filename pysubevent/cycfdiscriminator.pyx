@@ -38,11 +38,12 @@ cpdef runCFdiscriminator( np.ndarray[DTYPE_t, ndim=1] waveform, int delay, int t
   for t in range(0,len(waveform)):
       if diff[t]>threshold and ( len(t_fire)==0 or (len(t_fire)>0 and t_fire[-1]+deadtime<t) ):
           t_fire.append( t-delay )
-          diff_fire.append( diff[t] )
-  # determine max amp
+
+  # determine max amp, max diff
   for trig in t_fire:
       amp_fire.append( np.max( waveform[trig:np.minimum( len(waveform), trig+width )] )  )
       maxt_fire.append( trig+np.argmax( waveform[trig:np.minimum( len(waveform), trig+width )] ) )
+      diff_fire.append( np.max( diff[trig:np.minimum( len(diff), trig+width )] ) )
 
   return zip( t_fire, amp_fire, maxt_fire, diff_fire )
 
