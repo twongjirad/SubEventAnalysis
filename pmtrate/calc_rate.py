@@ -13,14 +13,13 @@ from pysubevent.pedestal import getpedestal
 from pysubevent.cfdiscriminator import cfdiscConfig, runCFdiscriminator
 from pylard.pylardisplay.opdetdisplay import OpDetDisplay
 
-PLOT = False
 NCHANS = 32
 
 # config
 cfdsettings = cfdiscConfig("disc1","cfdconfig.json")
 
 
-def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False, first_event=0 ):
+def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False, first_event=0, VISUALIZE=False ):
     # check that the data file type was selected
     if wffile==False and rawdigitfile==False:
         print "Select either wffile or rawdigitfile"
@@ -58,7 +57,7 @@ def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False, f
     pulsetree.Branch( 'chmaxamp',pchmaxamp,'chmaxamp/F' )
 
     
-    if PLOT:
+    if VISUALIZE:
         opdisplay = OpDetDisplay( opdata )
         opdisplay.show()
 
@@ -67,7 +66,7 @@ def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False, f
             print "Event: ",ievent
         event[0] = ievent
 
-        if PLOT:
+        if VISUALIZE:
             more = opdisplay.gotoEvent( ievent )
         else:
             more = opdata.getEvent( ievent )
@@ -100,7 +99,7 @@ def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False, f
                 pmaxamp[0] = np.max( wfm[tdisc:tdisc+cfdsettings.deadtime]-ped[0] )
                 if idisc>0:
                     pdt[0] = tdisc - discs[idisc-1].tfire
-                if PLOT:
+                if VISUALIZE:
                     discfire = pg.PlotCurveItem()
                     x = np.linspace( 15.625*(tdisc-5), 15.625*(tdisc+5+cfdsettings.deadtime), cfdsettings.deadtime+10 )
                     y = np.ones( cfdsettings.deadtime+10 )*femch
@@ -108,7 +107,7 @@ def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False, f
                     discfire.setData( x=x, y=y, pen=(255,0,0,255) )
                     opdisplay.addUserWaveformItem( discfire, femch )
                 pulsetree.Fill()
-        if PLOT:
+        if VISUALIZE:
             print "please enjoy plot"
             raw_input()
         eventtree.Fill()

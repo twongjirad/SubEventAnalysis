@@ -78,12 +78,12 @@ def runCFdiscriminator( waveform, config ):
 
     # confirmed that cythonized code produces same output (2015/08/30)
     # cythonized
-    outcy = cycfd.runCFdiscriminator( waveform, config.delay, config.threshold, config.deadtime, config.width )
-    #outnative = cycfd.pyRunCFdiscriminatorCPP( waveform.astype(np.float), config.delay, config.threshold, config.deadtime, config.width )
+    #outcy = cycfd.runCFdiscriminator( waveform, config.delay, config.threshold, config.deadtime, config.width )
+    outnative = cycfd.pyRunCFdiscriminatorCPP( waveform.astype(np.float), config.delay, config.threshold, config.deadtime, config.width )
     #print "cythonized: ",outcy
     #print "native: ",outnative
-    out = CFDFireVector.from_vector_tuple( outcy )
-    #out = CFDFireVector.from_vector_tuple( outnative )
-
+    #out = CFDFireVector.from_vector_tuple( outcy )
+    out = CFDFireVector.from_vector_tuple( outnative )
+    #raw_input()
     return out
         
