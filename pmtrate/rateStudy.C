@@ -1,8 +1,11 @@
 #include<iostream>
 #include<fstream>
+#include<vector>
 #include<sstream>
 
 #include"TH1F.h"
+#include"TMath.h"
+#include"TF1.h"
 #include"TFile.h"
 #include"TLegend.h"
 #include"TTree.h"
@@ -12,16 +15,13 @@
 
 using namespace std;
 
+vector<double> parse(string s);
+
 void rateStudy() {
-  const int NRUNS = 13;
+  const int NRUNS = 21;
   const int NCH = 32;
 
   TCanvas* c1 = new TCanvas("c1", "c1", 800, 600);
-
-  ifstream fin;
-  fin.open("runlist.txt");
-
-  string runNumber = "";
 
   TMultiGraph *mg = new TMultiGraph();
 
@@ -31,28 +31,37 @@ void rateStudy() {
 
   //Color buffer
   const int NCOLORS = 32;
-  int color[NCOLORS] = {73, 2, 3, 4, 5, 6, 7, 8, 9, 12, 28, 32, 34,
+  int color[NCOLORS] = {73, 2, 3, 4, 99, 6, 7, 8, 9, 12, 28, 32, 34,
                         28, 50, 51, 56, 58, 88, 99, 1, 208, 209,
                         218, 212, 210, 221, 224, 225, 226, 227, 228 };
 
+  ifstream fin;
+  fin.open("runlist.txt");
+
+  string line = "";
+
   for (int ch = 0; ch < NCH; ++ch) {
+    //Graph points and errors
     Double_t x[NRUNS];
     Double_t y[NRUNS];
     Double_t errX[NRUNS] = {0};
     Double_t errY[NRUNS];
 
     int fileCounter = 0;
-    while(getline(fin, runNumber)) {
-      x[fileCounter] = fileCounter;
+    while(getline(fin, line)) {
+      vector<double> data = parse(line);
       stringstream filePath;
-      filePath << "pmtratestudy/run" << runNumber << ".root";
-
+      filePath << "pmtratestudy/run" << data[0] << ".root";
+      cout << "opening file at " << filePath.str() << endl;
       TFile* f = new TFile(filePath.str().c_str());
       TTree* t = (TTree *)f->Get("eventtree");
 
-      int nfires[NCH] = {0};
-      t->SetBranchAddress("nfires", &nfires);
+      x[fileCounter] = data[1];
 
+      int nfires[NCH] = {0};
+      int samples = 0;
+      t->SetBranchAddress("nfires", &nfires);
+      t->SetBranchAddress("samples", &samples);
       TH1F* h = new TH1F("h","hist", NCH, 0, NCH);
       
       int nentries = t->GetEntries();
@@ -60,9 +69,30 @@ void rateStudy() {
         t->GetEntry(entry);
         h->Fill(nfires[ch]);
       }
-      y[fileCounter] = h->GetMean() / (1500 * 15.625E-6);
-      errY[fileCounter] = h->GetMeanError() / (1500 * 15.625E-6);
-      cout << x[fileCounter] << ", " << y[fileCounter] << endl;
+
+      TF1* pois = new TF1("pois","[0]*TMath::Poisson(x,[1])",0,50);
+      pois->SetParameter(0,1);
+      pois->SetParameter(1, h->GetMean());
+
+      h->Fit("pois");
+      TF1 *myfit = (TF1 *)h->GetFunction("pois");
+      Double_t lambda = myfit->GetParameter(1);  
+      h->Draw();
+      stringstream histFileName;
+      histFileName << "hist/h" << data[0] << "_ch" << ch << ".png";
+      c1->SaveAs(histFileName.str().c_str());
+      //Graph with poisson method
+#if 1
+      y[fileCounter] = lambda / ((samples - 1) * 15.625E-6);
+      errY[fileCounter] = myfit->GetParError(1) / ((samples - 1) * 15.625E-6);
+#endif
+      //Graph with mean method
+#if 0
+      y[fileCounter] = h->GetMean() / ((samples - 1) * 15.625E-6);
+      errY[fileCounter] = h->GetMeanError() / ((samples - 1) * 15.625E-6);
+#endif
+      cout << x[fileCounter] << ", " << y[fileCounter] 
+           << " | " << (samples - 1) << endl;
       f->Close();
       fileCounter++;
     } 
@@ -71,22 +101,12 @@ void rateStudy() {
     gr->SetLineColor(color[ch % NCOLORS]);
     cout << "color: " << color[ch % NCOLORS] << endl;
     gr->SetLineWidth(2);
+    gr->SetMarkerStyle(7);
     gr->GetXaxis()->SetTitle("Run Date");
     gr->GetYaxis()->SetTitle("Rate [kHz]");
 
-    ifstream din;
-    din.open("runinfo.txt");
-    string date;
-    int runCounter = 0;
-    while(getline(din, date)) {
-      int bin_index = gr->GetXaxis()->FindBin(x[runCounter]);
-      gr->GetXaxis()->SetBinLabel(bin_index, date.c_str());
-      runCounter++;
-    }
-    din.close();
-
     stringstream entryName, fileName;
-    entryName << ch;
+    entryName << "Channel" << ch;
     gr->SetTitle(entryName.str().c_str());
     fileName << "plots/" << ch << ".png";
     legend->AddEntry(gr, entryName.str().c_str());
@@ -98,11 +118,30 @@ void rateStudy() {
     fin.seekg(0, ios::beg);
   }
   mg->Draw("alp");
-  mg->GetXaxis()->SetTitle("Run #");
+  mg->GetXaxis()->SetTitle("Days since first run");
   mg->GetYaxis()->SetTitle("Rate [kHz]");
+  mg->SetTitle("All channels: Rate vs. Days since first Run");
 
   legend->Draw();
-
   c1->SaveAs("mg.pdf");
+}
+
+//Splits input string and returns a vector of doubles
+vector<double> parse(string s) {
+    string str = s;
+    vector<double> vect;
+
+    stringstream ss(str);
+
+    double d;
+
+    while (ss >> d) {
+        vect.push_back(d);
+
+        if (ss.peek() == ',') {
+            ss.ignore();
+        }
+    }
+    return vect;
 }
 
