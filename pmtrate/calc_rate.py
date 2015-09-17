@@ -19,7 +19,7 @@ NCHANS = 32
 cfdsettings = cfdiscConfig("disc1","cfdconfig.json")
 
 
-def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False, first_event=0, VISUALIZE=False ):
+def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False, VISUALIZE=False ):
     # check that the data file type was selected
     if wffile==False and rawdigitfile==False:
         print "Select either wffile or rawdigitfile"
@@ -45,18 +45,22 @@ def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False, f
     # Pulse Tree
     pulsetree = rt.TTree("pulsetree","PMT Rates")
     pch = array('i',[0])
-    pdt = array( 'f',[0] )
+    pt = array( 'f',[0] )
+    pwindt = array( 'f',[0] )
+    pchdt = array( 'f',[0] )
     pmaxamp = array('f',[0])
     ped = array('f',[0])
     pchmaxamp = array('f',[0])
     pulsetree.Branch( 'event', event, 'event/I' )
     pulsetree.Branch( 'ch',pch,'ch/I' )
-    pulsetree.Branch( 'dt',pdt,'dt/F' )
+    pulsetree.Branch( 't',pt,'t/F' )
+    pulsetree.Branch( 'windt',pwindt,'windt/F' )
+    pulsetree.Branch( 'chdt',pchdt,'chdt/F' )
     pulsetree.Branch( 'amp',pmaxamp,'amp/F' )
     pulsetree.Branch( "ped",ped,"ped/F")
     pulsetree.Branch( 'chmaxamp',pchmaxamp,'chmaxamp/F' )
 
-    
+    first_event = opdata.first_event
     if VISUALIZE:
         opdisplay = OpDetDisplay( opdata )
         opdisplay.show()
@@ -74,31 +78,45 @@ def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False, f
             print "not more"
             break
 
-        # for each waveform get the number of cosmic discs
+        # for each event gather disc fires and sort by time
+        event_times = []
+        event_discs = {}
         echmax[0] = 0
+        chpedestals = {}
+        chmaxamps = {}
         for femch in range(0,NCHANS):
             wfm = opdata.getData(slot=5)[:,femch]            
             discs = runCFdiscriminator( wfm, cfdsettings )
             ped[0] = getpedestal( wfm, 10, 2 )
+            chpedestals[femch] = ped[0]
 
             nfires[femch]  = len(discs)
             pch[0] = femch
             pchmaxamp[0] = np.max( wfm - ped[0] )
+            chmaxamps[femch] = pchmaxamp[0]
             if echmax[0]<pchmaxamp[0]:
                 echmax[0] = pchmaxamp[0]
             samples[0] = len(wfm)
 
-            pdt[0] = -1
+            pchdt[0] = -1
             pmaxamp[0] = 0
             
-            #print femch,len(discs),discs
-            #print discs,len(discs)
+            if len(discs)==0:
+                print "Discriminator found zero pusles in channel=",femch," event=",event[0]
+            
             for idisc,disc in enumerate(discs):
-                #print disc
+                disc.ch = femch
+                t = disc.tfire + 0.01*disc.ch # the channel number is just to keep a unique tag
+                event_times.append( t )
+                event_discs[t] = disc
+
                 tdisc = disc.tfire
-                pmaxamp[0] = np.max( wfm[tdisc:tdisc+cfdsettings.deadtime]-ped[0] )
+                disc.pmaxamp = np.max( wfm[tdisc:tdisc+cfdsettings.deadtime]-ped[0] )
+                
                 if idisc>0:
-                    pdt[0] = tdisc - discs[idisc-1].tfire
+                    disc.pchdt = tdisc - discs[idisc-1].tfire
+                else:
+                    disc.pchdt = -1
                 if VISUALIZE:
                     discfire = pg.PlotCurveItem()
                     x = np.linspace( 15.625*(tdisc-5), 15.625*(tdisc+5+cfdsettings.deadtime), cfdsettings.deadtime+10 )
@@ -106,7 +124,23 @@ def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False, f
                     y[5:5+cfdsettings.deadtime] += 2
                     discfire.setData( x=x, y=y, pen=(255,0,0,255) )
                     opdisplay.addUserWaveformItem( discfire, femch )
-                pulsetree.Fill()
+        event_times.sort()
+        for idisc,t in enumerate(event_times):
+            disc = event_discs[t]
+            pch[0] = disc.ch
+            pt[0] = disc.tfire
+            pmaxamp[0] = disc.pmaxamp
+            pchdt[0] = disc.pchdt
+            ped[0] = chpedestals[disc.ch]
+            pchmaxamp[0] = chmaxamps[disc.ch]
+            
+            if idisc==0:
+                pwindt[0] = -1
+            else:
+                pwindt[0] = disc.tfire-event_discs[ event_times[idisc-1] ].tfire
+            
+            pulsetree.Fill()
+            
         if VISUALIZE:
             print "please enjoy plot"
             raw_input()
@@ -137,7 +171,7 @@ if __name__ == "__main__":
         input = sys.argv[1]
         output = sys.argv[2]
 
-    calc_rates( input, 500, output, rawdigitfile=True, wffile=False, first_event=1 )
+    calc_rates( input, 500, output, rawdigitfile=True, wffile=False )
 
     #import cProfile
     #cProfile.run("calc_rates(\"%s\",200,\"%s\",rawdigitfile=True,wffile=False)"%(input,output))

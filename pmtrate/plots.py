@@ -32,7 +32,7 @@ from ROOT import *
 gStyle.SetOptStat(0)
 NCHANS = 32
 
-def makeplots( inputfile, outdir ):
+def makeplots( inputfile, outdir, run ):
     os.system("mkdir -p %s"%(outdir))
 
     eventtree = TChain("eventtree")
@@ -59,13 +59,13 @@ def makeplots( inputfile, outdir ):
     for ich in range(0,NCHANS):
         hname = "ratech%d"%(ich)
         hrates[ich] = TH1D( hname, "", NBINSRATE+1, MINRATE, MAXRATE )
-        eventtree.Draw("nfires[%d]/(1500.0*15.625e-6)>>%s"%(ich,hname),eventcut)
+        eventtree.Draw("nfires[%d]/(%d*15.625e-6)>>%s"%(ich,eventtree.samples-1,hname),eventcut)
         c.Update()
         #raw_input()
         for i in range(2,hrates[ich].GetNbinsX()+1):
             hrate2D.SetBinContent( ich+1, i, hrates[ich].GetBinContent( i ) )
     hrate2D.Draw("COLZ")
-    c.SaveAs( "%s/rate_vs_ch.pdf"%(outdir) )
+    c.SaveAs( "%s/run%d_rate_vs_ch.pdf"%(outdir,run) )
     c.Update()
     #raw_input()
 
@@ -82,7 +82,7 @@ def makeplots( inputfile, outdir ):
         for i in range(2,hpulsess[ich].GetNbinsX()+1):
             hpulses2D.SetBinContent( ich+1, i, hpulsess[ich].GetBinContent( i ) )
     hpulses2D.Draw("COLZ")
-    c.SaveAs( "%s/pulses_vs_ch.pdf"%(outdir) )
+    c.SaveAs( "%s/run%d_pulses_vs_ch.pdf"%(outdir,run) )
     c.Update()
     #raw_input()
     
@@ -98,7 +98,7 @@ def makeplots( inputfile, outdir ):
         for i in range(1,hamps[ich].GetNbinsX()+1):
             hamp2D.SetBinContent( ich+1, i, hamps[ich].GetBinContent( i ) )
     hamp2D.Draw("COLZ")
-    c.SaveAs( "%s/amp_vs_ch.pdf"%(outdir) )
+    c.SaveAs( "%s/run%d_amp_vs_ch.pdf"%(outdir,run) )
     c.Update()
     #raw_input()
 
@@ -106,18 +106,26 @@ if __name__ == "__main__":
 
     input = "pmtratestudy/run1536.root"
     output = "pmtratestudy/figs/run1536"
-    if len(sys.argv)==3:
+    if len(sys.argv)==4:
         input = sys.argv[1]
         output = sys.argv[2]
+        run = int(sys.argv[3])
 
-    #files = os.listdir( "pmtratestudy" )
-    #for f in files:
-    #    if "pmtrawdigits" not in f.strip():
-    #        continue
-    #    input = "pmtratestudy/"+f.strip()
-    #    output = "figs/"+f.strip()[:-len(".root")]
-    #    makeplots( input, output)
+#     files = os.listdir( "pmtratestudy" )
+#     for f in files:
+#         if ".root" not in f.strip():
+#             continue
+#         input = "pmtratestudy/"+f.strip()
+#         output = "pmtratestudy/figs/"+f.strip()[:-len(".root")]
+#         try:
+#             run = int( f.strip().split("_")[0][len("run"):] )
+#         except:
+#            #print r.strip().split("_")
+#            #print r.strip().split("_")
+#             run = int( f.strip().split(".")[0][len("run"):] )
+#             print "PROCESS RUN ",run
+#             makeplots( input, output, run)
 
-    makeplots( input, output)
+    makeplots( input, output, run)
     #makeplots( "test.root", "figs/test" )
 
