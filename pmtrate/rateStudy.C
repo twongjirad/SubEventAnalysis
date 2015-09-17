@@ -18,16 +18,18 @@ using namespace std;
 vector<double> parse(string s);
 
 void rateStudy() {
-  const int NRUNS = 21;
+  const int NRUNS = 16;
   const int NCH = 32;
 
   TCanvas* c1 = new TCanvas("c1", "c1", 800, 600);
 
   TMultiGraph *mg = new TMultiGraph();
 
-  TLegend *legend=new TLegend(0.75,0.65,0.88,0.85);
+  TLegend *legend=new TLegend(0.65,0.15,0.88,0.55);
   legend->SetNColumns(4);
   legend->SetFillColor(0);
+
+  TH1F* hRate = new TH1F("hRate", "hist", NCH, 0, NCH);
 
   //Color buffer
   const int NCOLORS = 32;
@@ -60,17 +62,23 @@ void rateStudy() {
 
       int nfires[NCH] = {0};
       int samples = 0;
+      float chmax = 0.0;
       t->SetBranchAddress("nfires", &nfires);
       t->SetBranchAddress("samples", &samples);
+      t->SetBranchAddress("chmax", &chmax);
+      
       TH1F* h = new TH1F("h","hist", NCH, 0, NCH);
       
       int nentries = t->GetEntries();
       for (int entry = 0; entry < nentries; ++entry) {
         t->GetEntry(entry);
-        h->Fill(nfires[ch]);
+        if (chmax < 100.0) {
+          h->Fill(nfires[ch]);
+        }
       }
 
       TF1* pois = new TF1("pois","[0]*TMath::Poisson(x,[1])",0,50);
+      
       pois->SetParameter(0,1);
       pois->SetParameter(1, h->GetMean());
 
@@ -96,12 +104,23 @@ void rateStudy() {
       f->Close();
       fileCounter++;
     } 
-    
+ 
+    TF1* ppp = new TF1("ppp","[0]*TMath::Power(0.5,x*[1])",0.01,1.0);
+
+    ppp->SetParameter(0,1);
+    ppp->SetParameter(1,0.4);
+     
     TGraphErrors* gr = new TGraphErrors(NRUNS, x, y, errX, errY);
     gr->SetLineColor(color[ch % NCOLORS]);
     cout << "color: " << color[ch % NCOLORS] << endl;
     gr->SetLineWidth(2);
     gr->SetMarkerStyle(7);
+    gr->Fit("ppp","R","",0.01,1.0);
+    TF1 *afit = (TF1 *)gr->GetFunction("ppp");
+    Double_t aRate = 1/afit->GetParameter(1);  
+    if (aRate > 0) {
+      hRate->Fill(aRate);
+    }
     gr->GetXaxis()->SetTitle("Run Date");
     gr->GetYaxis()->SetTitle("Rate [kHz]");
 
@@ -117,6 +136,8 @@ void rateStudy() {
     fin.clear();
     fin.seekg(0, ios::beg);
   }
+  hRate->Draw();
+  c1->SaveAs("hrate.pdf");
   mg->Draw("alp");
   mg->GetXaxis()->SetTitle("Days since first run");
   mg->GetYaxis()->SetTitle("Rate [kHz]");
@@ -124,6 +145,7 @@ void rateStudy() {
 
   legend->Draw();
   c1->SaveAs("mg.pdf");
+  
 }
 
 //Splits input string and returns a vector of doubles
