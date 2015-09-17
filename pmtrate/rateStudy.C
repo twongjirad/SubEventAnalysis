@@ -4,6 +4,8 @@
 #include<sstream>
 
 #include"TH1F.h"
+#include"TMath.h"
+#include"TF1.h"
 #include"TFile.h"
 #include"TLegend.h"
 #include"TTree.h"
@@ -29,7 +31,7 @@ void rateStudy() {
 
   //Color buffer
   const int NCOLORS = 32;
-  int color[NCOLORS] = {73, 2, 3, 4, 5, 6, 7, 8, 9, 12, 28, 32, 34,
+  int color[NCOLORS] = {73, 2, 3, 4, 99, 6, 7, 8, 9, 12, 28, 32, 34,
                         28, 50, 51, 56, 58, 88, 99, 1, 208, 209,
                         218, 212, 210, 221, 224, 225, 226, 227, 228 };
 
@@ -39,6 +41,7 @@ void rateStudy() {
   string line = "";
 
   for (int ch = 0; ch < NCH; ++ch) {
+    //Graph points and errors
     Double_t x[NRUNS];
     Double_t y[NRUNS];
     Double_t errX[NRUNS] = {0};
@@ -66,8 +69,28 @@ void rateStudy() {
         t->GetEntry(entry);
         h->Fill(nfires[ch]);
       }
+
+      TF1* pois = new TF1("pois","[0]*TMath::Poisson(x,[1])",0,50);
+      pois->SetParameter(0,1);
+      pois->SetParameter(1, h->GetMean());
+
+      h->Fit("pois");
+      TF1 *myfit = (TF1 *)h->GetFunction("pois");
+      Double_t lambda = myfit->GetParameter(1);  
+      h->Draw();
+      stringstream histFileName;
+      histFileName << "hist/h" << data[0] << "_ch" << ch << ".png";
+      c1->SaveAs(histFileName.str().c_str());
+      //Graph with poisson method
+#if 1
+      y[fileCounter] = lambda / ((samples - 1) * 15.625E-6);
+      errY[fileCounter] = myfit->GetParError(1) / ((samples - 1) * 15.625E-6);
+#endif
+      //Graph with mean method
+#if 0
       y[fileCounter] = h->GetMean() / ((samples - 1) * 15.625E-6);
       errY[fileCounter] = h->GetMeanError() / ((samples - 1) * 15.625E-6);
+#endif
       cout << x[fileCounter] << ", " << y[fileCounter] 
            << " | " << (samples - 1) << endl;
       f->Close();
@@ -78,6 +101,7 @@ void rateStudy() {
     gr->SetLineColor(color[ch % NCOLORS]);
     cout << "color: " << color[ch % NCOLORS] << endl;
     gr->SetLineWidth(2);
+    gr->SetMarkerStyle(7);
     gr->GetXaxis()->SetTitle("Run Date");
     gr->GetYaxis()->SetTitle("Rate [kHz]");
 
@@ -99,10 +123,10 @@ void rateStudy() {
   mg->SetTitle("All channels: Rate vs. Days since first Run");
 
   legend->Draw();
-
   c1->SaveAs("mg.pdf");
 }
 
+//Splits input string and returns a vector of doubles
 vector<double> parse(string s) {
     string str = s;
     vector<double> vect;
