@@ -36,10 +36,13 @@ void rateStudy() {
                         218, 212, 210, 221, 224, 225, 226, 227, 228 };
 
   ifstream fin;
-  fin.open("runlist.txt");
+  //fin.open("runlist.txt");
+  fin.open("filter_runlist.txt");
 
   string line = "";
 
+  TFile* out = new TFile("outtemp.root", "REACREATE");
+  
   for (int ch = 0; ch < NCH; ++ch) {
     //Graph points and errors
     Double_t x[NRUNS];
@@ -51,10 +54,13 @@ void rateStudy() {
     while(getline(fin, line)) {
       vector<double> data = parse(line);
       stringstream filePath;
-      filePath << "pmtratestudy/run" << data[0] << ".root";
+      filePath << "pmtratestudy/run" << data[0] << "*.root";
       cout << "opening file at " << filePath.str() << endl;
-      TFile* f = new TFile(filePath.str().c_str());
-      TTree* t = (TTree *)f->Get("eventtree");
+      //TFile* f = new TFile(filePath.str().c_str());
+      //TTree* t = (TTree *)f->Get("eventtree");
+      TChain* t = new TChain("eventtree");
+      t->Add( filePath.str().c_str() );
+      out->cd();
 
       x[fileCounter] = data[1];
 
@@ -74,8 +80,9 @@ void rateStudy() {
       pois->SetParameter(0,1);
       pois->SetParameter(1, h->GetMean());
 
-      h->Fit("pois");
-      TF1 *myfit = (TF1 *)h->GetFunction("pois");
+      h->Fit(pois,"R","",0,50);
+      //TF1 *myfit = (TF1 *)h->GetFunction("pois");
+      TF1 *myfit = (TF1 *)pois;
       Double_t lambda = myfit->GetParameter(1);  
       h->Draw();
       stringstream histFileName;
@@ -93,7 +100,7 @@ void rateStudy() {
 #endif
       cout << x[fileCounter] << ", " << y[fileCounter] 
            << " | " << (samples - 1) << endl;
-      f->Close();
+      //f->Close();
       fileCounter++;
     } 
     
