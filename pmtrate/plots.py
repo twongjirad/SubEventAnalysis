@@ -44,11 +44,11 @@ def makeplots( inputfile, outdir, run ):
     pulsetree.Add( inputfile )
 
     eventcut = "chmax<100"
-    pulsecut = "chmaxamp<100 && amp>6"
+    pulsecut = "chmaxamp<100 && amp>10"
 
     # 2D trigs per event vs. channel
     NBINSRATE = 25
-    binwidth = 1.0/(1500.0*15.625e-6)
+    binwidth = 1.0/((eventtree.samples-1)*15.625e-6)
     MINRATE = -0.5*binwidth
     MAXRATE = (NBINSRATE+0.5)*binwidth
 
@@ -61,10 +61,14 @@ def makeplots( inputfile, outdir, run ):
         hrates[ich] = TH1D( hname, "", NBINSRATE+1, MINRATE, MAXRATE )
         eventtree.Draw("nfires[%d]/(%d*15.625e-6)>>%s"%(ich,eventtree.samples-1,hname),eventcut)
         c.Update()
+        print hname, " mean=",hrates[ich].GetMean()
         #raw_input()
         for i in range(2,hrates[ich].GetNbinsX()+1):
             hrate2D.SetBinContent( ich+1, i, hrates[ich].GetBinContent( i ) )
+    hrate_prof = hrate2D.ProfileX()
     hrate2D.Draw("COLZ")
+    hrate_prof.Draw("same")
+
     c.SaveAs( "%s/run%d_rate_vs_ch.pdf"%(outdir,run) )
     c.Update()
     #raw_input()
@@ -111,21 +115,23 @@ if __name__ == "__main__":
         output = sys.argv[2]
         run = int(sys.argv[3])
 
-#     files = os.listdir( "pmtratestudy" )
-#     for f in files:
-#         if ".root" not in f.strip():
-#             continue
-#         input = "pmtratestudy/"+f.strip()
-#         output = "pmtratestudy/figs/"+f.strip()[:-len(".root")]
-#         try:
-#             run = int( f.strip().split("_")[0][len("run"):] )
-#         except:
-#            #print r.strip().split("_")
-#            #print r.strip().split("_")
-#             run = int( f.strip().split(".")[0][len("run"):] )
-#             print "PROCESS RUN ",run
-#             makeplots( input, output, run)
+    files = os.listdir( "pmtratestudy" )
+    for f in files:
+        if ".root" not in f.strip():
+            continue
+        if "filter" not in f.strip():
+            continue
+        input = "pmtratestudy/"+f.strip()
+        output = "pmtratestudy/figs/"+f.strip()[:-len(".root")]
+        try:
+            run = int( f.strip().split("_")[0][len("run"):] )
+        except:
+           #print r.strip().split("_")
+           #print r.strip().split("_")
+            run = int( f.strip().split(".")[0][len("run"):] )
+        print "PROCESS RUN ",run
+        makeplots( input, output, run)
 
-    makeplots( input, output, run)
+    #makeplots( input, output, run)
     #makeplots( "test.root", "figs/test" )
 

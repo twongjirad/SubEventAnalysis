@@ -9,6 +9,7 @@
 #include"TFile.h"
 #include"TLegend.h"
 #include"TTree.h"
+#include"TChain.h"
 #include"TCanvas.h"
 #include"TMultiGraph.h"
 #include"TGraphErrors.h"
@@ -18,8 +19,9 @@ using namespace std;
 vector<double> parse(string s);
 
 void rateStudy() {
-  const int NRUNS = 16;
+  const int NRUNS = 25;
   const int NCH = 32;
+  const int NBINS = 32;
 
   TCanvas* c1 = new TCanvas("c1", "c1", 800, 600);
 
@@ -29,7 +31,7 @@ void rateStudy() {
   legend->SetNColumns(4);
   legend->SetFillColor(0);
 
-  TH1F* hRate = new TH1F("hRate", "hist", NCH, 0, NCH);
+  TH1F* hRate = new TH1F("hRate", "hist", 32.0, 0, 8.0);
 
   //Color buffer
   const int NCOLORS = 32;
@@ -44,13 +46,21 @@ void rateStudy() {
   string line = "";
 
   TFile* out = new TFile("outtemp.root", "REACREATE");
-  
+  TH1F* h = new TH1F("h","hist", NBINS, 0, NBINS);
+  TF1* pois = new TF1("pois","[0]*TMath::Poisson(x,[1])",0,50);
+  TF1* ppp = new TF1("ppp","[0]*TMath::Power(0.5,x*[1])",0.01,1.0);
+
+
   for (int ch = 0; ch < NCH; ++ch) {
+
+    if ( ch==26 || ch==27 )
+      continue;
+
     //Graph points and errors
     Double_t x[NRUNS];
     Double_t y[NRUNS];
     Double_t errX[NRUNS] = {0};
-    Double_t errY[NRUNS];
+    Double_t errY[NRUNS] = {0};
 
     int fileCounter = 0;
     while(getline(fin, line)) {
@@ -58,6 +68,7 @@ void rateStudy() {
       stringstream filePath;
       filePath << "pmtratestudy/run" << data[0] << "*.root";
       cout << "opening file at " << filePath.str() << endl;
+      cout << "file counter: " << fileCounter << " channel=" << ch << endl;
       //TFile* f = new TFile(filePath.str().c_str());
       //TTree* t = (TTree *)f->Get("eventtree");
       TChain* t = new TChain("eventtree");
@@ -73,7 +84,7 @@ void rateStudy() {
       t->SetBranchAddress("samples", &samples);
       t->SetBranchAddress("chmax", &chmax);
       
-      TH1F* h = new TH1F("h","hist", NCH, 0, NCH);
+      h->Reset();
       
       int nentries = t->GetEntries();
       for (int entry = 0; entry < nentries; ++entry) {
@@ -83,12 +94,12 @@ void rateStudy() {
         }
       }
 
-      TF1* pois = new TF1("pois","[0]*TMath::Poisson(x,[1])",0,50);
+
       
       pois->SetParameter(0,1);
       pois->SetParameter(1, h->GetMean());
 
-      h->Fit(pois,"R","",0,50);
+      h->Fit(pois,"RQ","",0,50);
       //TF1 *myfit = (TF1 *)h->GetFunction("pois");
       TF1 *myfit = (TF1 *)pois;
       Double_t lambda = myfit->GetParameter(1);  
@@ -108,11 +119,10 @@ void rateStudy() {
 #endif
       cout << x[fileCounter] << ", " << y[fileCounter] 
            << " | " << (samples - 1) << endl;
+      delete t;
       //f->Close();
       fileCounter++;
     } 
- 
-    TF1* ppp = new TF1("ppp","[0]*TMath::Power(0.5,x*[1])",0.01,1.0);
 
     ppp->SetParameter(0,1);
     ppp->SetParameter(1,0.4);
@@ -122,7 +132,7 @@ void rateStudy() {
     cout << "color: " << color[ch % NCOLORS] << endl;
     gr->SetLineWidth(2);
     gr->SetMarkerStyle(7);
-    gr->Fit("ppp","R","",0.01,1.0);
+    gr->Fit("ppp","R0","Q0",0.045,2.0);
     TF1 *afit = (TF1 *)gr->GetFunction("ppp");
     Double_t aRate = 1/afit->GetParameter(1);  
     if (aRate > 0) {
@@ -142,8 +152,9 @@ void rateStudy() {
     cout << "added plot to mg\n";
     fin.clear();
     fin.seekg(0, ios::beg);
-  }
+  } // loop over channel
   hRate->Draw();
+  hRate->Fit("gaus");
   c1->SaveAs("hrate.pdf");
   mg->Draw("alp");
   mg->GetXaxis()->SetTitle("Days since first run");

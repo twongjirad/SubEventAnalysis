@@ -51,12 +51,14 @@ def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False, V
     pmaxamp = array('f',[0])
     ped = array('f',[0])
     pchmaxamp = array('f',[0])
+    parea = array('f',[0])
     pulsetree.Branch( 'event', event, 'event/I' )
     pulsetree.Branch( 'ch',pch,'ch/I' )
     pulsetree.Branch( 't',pt,'t/F' )
     pulsetree.Branch( 'windt',pwindt,'windt/F' )
     pulsetree.Branch( 'chdt',pchdt,'chdt/F' )
     pulsetree.Branch( 'amp',pmaxamp,'amp/F' )
+    pulsetree.Branch( 'area',parea,'area/F' )
     pulsetree.Branch( "ped",ped,"ped/F")
     pulsetree.Branch( 'chmaxamp',pchmaxamp,'chmaxamp/F' )
 
@@ -112,7 +114,11 @@ def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False, V
 
                 tdisc = disc.tfire
                 disc.pmaxamp = np.max( wfm[tdisc:tdisc+cfdsettings.deadtime]-ped[0] )
-                
+                pped = getpedestal( wfm[ np.maximum(0,tdisc-20):tdisc ] , 5, 2 )
+                if pped is None:
+                    pped = ped[0]
+                disc.parea = np.sum( wfm[tdisc:tdisc+cfdsettings.deadtime] ) - cfdsettings.deadtime*pped
+
                 if idisc>0:
                     disc.pchdt = tdisc - discs[idisc-1].tfire
                 else:
@@ -133,6 +139,7 @@ def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False, V
             pchdt[0] = disc.pchdt
             ped[0] = chpedestals[disc.ch]
             pchmaxamp[0] = chmaxamps[disc.ch]
+            parea[0] = disc.parea
             
             if idisc==0:
                 pwindt[0] = -1
@@ -153,25 +160,29 @@ def runloop():
     for f in os.listdir( "../../data/pmtratedata/" ):
         if ".root" not in f:
             continue
-        print f
+        if "filter" not in f:
+            continue
+        #print f
         input = "../../data/pmtratedata/"+f.strip()
         output = "pmtratestudy/"+f.strip()
         calc_rates( input, 10000, output, rawdigitfile=True, wffile=False )
+        print output
     
         
 if __name__ == "__main__":
     app = QtGui.QApplication([])
     #input = "../../data/pmtbglight/run2228_pmtrawdigits_subrun0.root"
     #input = "../../data/pmttriggerdata/run2290_subrun0.root"
-    input = "../../data/pmtratedata/run1536_pmtrawdigits.root"
+    #input = "../../data/pmtratedata/run1536_pmtrawdigits.root"
     #output = "test.root"
-    output = "pmtratestudy/run1536.root"
+    #output = "pmtratestudy/run1536.root"
+    runloop()
 
-    if len(sys.argv)==3:
-        input = sys.argv[1]
-        output = sys.argv[2]
+    #if len(sys.argv)==3:
+    #    input = sys.argv[1]
+    #    output = sys.argv[2]
 
-    calc_rates( input, 500, output, rawdigitfile=True, wffile=False )
+    #calc_rates( input, 500, output, rawdigitfile=True, wffile=False )
 
     #import cProfile
     #cProfile.run("calc_rates(\"%s\",200,\"%s\",rawdigitfile=True,wffile=False)"%(input,output))

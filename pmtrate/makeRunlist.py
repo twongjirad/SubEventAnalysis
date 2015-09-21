@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 
-f = open( '../../data/pmtratedata/README.json' )
+f = open( '../../data/pmtratedata/README_v2.json' )
 j = json.load(f)
 
 runs = j.keys()
@@ -14,6 +14,8 @@ fout = open('filter_runlist.txt','w')
 
 for strrun in runs:
     run = int(strrun)
+    if run<2378 or run>2478:
+        continue
     date = j[strrun]["date"]
     t = datetime.strptime( date, "%m/%d/%Y %H:%M" )
     if "condition" not in j[strrun] or "filter" not in j[strrun]["condition"]:
@@ -21,5 +23,6 @@ for strrun in runs:
     tdiff = t-start
     diff = tdiff.days*(24*3600) + (t-start).seconds
     hrs = diff/3600.0
+    days = hrs/24.0
     print run,date,hrs
-    print >>fout,"%d %f" % ( run, hrs)
+    print >>fout,"%d %f" % ( run, days)
