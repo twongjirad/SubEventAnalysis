@@ -2,6 +2,7 @@ import os,sys
 import json
 import numpy as np
 from collections import Sequence
+import operator
 
 # cythonized function
 import pysubevent.cycfdiscriminator as cycfd
@@ -66,7 +67,10 @@ class CFDFireVector(Sequence):
         return self.fires[index]
     def __len__(self):
         return self.getNumFires()
-        
+    def getAmpOrderedList( self, reverse=False ):
+        return sorted( self.fires, key=operator.attrgetter('maxamp'), reverse=reverse )
+    def getTimeOrderedList( self, reverse=False ):
+        return sorted( self.fires, key=operator.attrgetter('tfire'), reverse=reverse )
 
 def runCFdiscriminator( waveform, config ):
     """

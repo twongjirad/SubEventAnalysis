@@ -3,9 +3,9 @@ import json
 import numpy as np
 import pysubevent.cfdiscriminator as cfd
 import pysubevent.pedestal as ped
+from pysubevent.subevent import ChannelSubEvent, SubEvent
 import math 
 import cysubeventdisc as cyse
-from subevent import ChannelSubEvent, SubEvent
 
 # Single discriminator
 class subeventdiscConfig:
@@ -100,14 +100,14 @@ def findOneSubEvent( waveform, cfdconf, config, ch ):
     #pbin1 = pbin1_fast + pbin1_slow # expected fraction of combined slow-fast exponential in first bin
     
     # Find peaks
-    peaks = cfd.runCFdiscriminator( waveform, cfdconf )
+    cfdvec = cfd.runCFdiscriminator( waveform, cfdconf )
+    peaks_sorted = cfdvec.getAmpOrderedList( reverse=True )
 
-    # Sort by diff height, get biggest
-    peaks_sorted = sorted( peaks, key=lambda tup: tup[1], reverse=True )
+    # Sort by diff height, get biggest and make a subevent out of it
     if len(peaks_sorted)>0:
-        tstart = peaks_sorted[0][0]
-        maxamp = peaks_sorted[0][1]
-        tmax   = peaks_sorted[0][2]
+        tstart = peaks_sorted[0].tfire
+        maxamp = peaks_sorted[0].maxamp
+        tmax   = peaks_sorted[0].tmax
         #scale = waveform[tmax]/pbin1
         tend = tstart
         spe_sigma = 4.0*cfdconf.nspersample
@@ -142,7 +142,7 @@ def runSubEventDiscChannel( waveform, config, ch, retpostwfm=False ):
     (6) Repeat (1)-(5) until all disc. peaks are below threshold
     * Note this is time hog now *
     """
-
+    
 
     subevents = []
 
@@ -205,10 +205,12 @@ def runSubEventDisc( opdata, config, retpostwfm=False, hgslot=5, lgslot=6, maxch
             wf = lgwfm[:,ch] # switch to low-gain waveform
             use_hg = False
         if retpostwfm:
-            subevents,postwfm =  runSubEventDiscChannel( wf, config, ch, retpostwfm=retpostwfm )
+            subevents,postwfm =  cyse.cyRunSubEventDiscChannel( wf, config, ch, retpostwfm=retpostwfm ) # cython (reduces time to 30%)
+            #subevents,postwfm =  runSubEventDiscChannel( wf, config, ch, retpostwfm=retpostwfm ) # python
             chpostwfms[ch] = postwfm
         else:
-            subevents =  runSubEventDiscChannel( wf, config, ch, retpostwfm=retpostwfm )
+            subevents =  cyse.cyRunSubEventDiscChannel( wf, config, ch, retpostwfm=retpostwfm ) # cython (reduces time to 30%)
+            #subevents =  runSubEventDiscChannel( wf, config, ch, retpostwfm=retpostwfm ) # python
         # add waveforms for subevents
         for subevent in subevents:
             subevent.hgwfm = hgwfm[subevent.tstart:subevent.tend,ch]
