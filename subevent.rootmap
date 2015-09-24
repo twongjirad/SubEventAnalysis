@@ -1,2 +1,3 @@
 Library.Flash:                              ${VIRTUAL_ENV}/lib/python2.7/site-packages/pysubevent/subevent/libsubeventdata.so
 Library.SubEvent:                           ${VIRTUAL_ENV}/lib/python2.7/site-packages/pysubevent/subevent/libsubeventdata.so
+Library.CFDFire:			    ${VIRTUAL_ENV}/lib/python2.7/site-packages/pysubevent/cfdiscriminator/libcfdiscdata.so
