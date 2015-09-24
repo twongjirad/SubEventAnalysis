@@ -3,9 +3,9 @@
 
 #include "scintresponse.hh"
 
-namespace cpysubevent {
+namespace subevent {
 
-  void calcScintResponseCPP( std::vector< float >& fexpectation, int tstart, int tend, int maxt, float sig, float maxamp, float fastconst, float slowconst, float nspertick ) {
+  void calcScintResponseCPP( std::vector< double >& fexpectation, int tstart, int tend, int maxt, float sig, float maxamp, float fastconst, float slowconst, float nspertick ) {
     
     //slow component shape: expo convolved with gaus
     float t_smax = 95.0;    // peak of only slow component. numerically solved for det. smearing=3.5*15.625 ns, decay time const= 1500 ns

@@ -1,15 +1,19 @@
 #ifndef __SUBEVENT__
 #include "TObject.h"
 
-class SubEvent : public TObject {
+namespace subevent {
 
-public:
+  class SubEvent : public TObject {
+    
+  public:
+    
+    SubEvent();
+    ~SubEvent();
+    
+    ClassDef( SubEvent, 1 );
+    
+  };
 
-  SubEvent();
-  ~SubEvent();
-
-  ClassDef( SubEvent, 1 );
-
-};
+}
 
 #endif

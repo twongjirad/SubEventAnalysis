@@ -3,23 +3,30 @@
 #include "TObject.h"
 #include <vector>
 
-class Flash : public TObject {
+namespace subevent {
+  class Flash : public TObject {
 
-public:
+  public:
+    
+    Flash();
+    Flash( int ch, int tstart, int tend, int tmax, float maxamp, std::vector< double >& expectation, std::vector< double >& waveform );
+    ~Flash();
+    
+    template< typename T >
+    void storeWaveform( std::vector< T >& waveform );
+    void storeExpectation( std::vector< double >& expectation );
 
-  Flash();
-  ~Flash();
+    int ch;
+    int tstart;
+    int tend;
+    int tmax;
+    float maxamp;
+    std::vector< double > expectation;
+    std::vector< double > waveform;
 
-  int ch;
-  int tstart;
-  int tend;
-  int tmax;
-  float maxamp;
-  std::vector< double > expectation;
-  std::vector< double > waveform;
+    ClassDef( Flash, 1 );
+  };
 
-  ClassDef( Flash, 1 );
-
-};
+}
 
 #endif

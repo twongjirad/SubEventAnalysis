@@ -1,7 +1,11 @@
 #include "SubEvent.hh"
 
-ClassImp( SubEvent );
+namespace subevent {
 
-SubEvent::SubEvent() {}
+  ClassImp( SubEvent );
 
-SubEvent::~SubEvent() {}
+  SubEvent::SubEvent() {}
+  
+  SubEvent::~SubEvent() {}
+
+}
