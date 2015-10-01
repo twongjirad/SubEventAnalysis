@@ -43,12 +43,12 @@ namespace cpysubevent {
       int end = trig+width;
       if ( end>arrlen )
 	end = arrlen;
-      int maxamp = waveform[trig];
+      int maxamp = (int)waveform[trig];
       int maxt = trig;
       double maxdiff = diff.at(trig);
       for ( int t=trig; t<end; t++ ) {
-	if ( maxamp < waveform[t] ) {
-	  maxamp = waveform[t];
+	if ( maxamp < (int)waveform[t] ) {
+	  maxamp = (int)waveform[t];
 	  maxt = t;
 	}
 	if ( maxdiff < diff.at(t) )
@@ -60,5 +60,9 @@ namespace cpysubevent {
       diff_fire.push_back( maxdiff );
     }
   }
+
+  void runCFdiscriminatorCPP( std::vector< int >& t_fire, std::vector< int >& amp_fire, std::vector< int >& maxt_fire, std::vector< int >& diff_fire,
+			      double* waveform, int delay, int threshold, int deadtime, int width, int arrlen );
+
 }
 

@@ -52,8 +52,8 @@ cpdef runCFdiscriminator( np.ndarray[DTYPE_t, ndim=1] waveform, int delay, int t
 from libcpp.vector cimport vector
 
 cdef extern from "cfdiscriminator.hh" namespace "cpysubevent":
-   cdef void runCFdiscriminatorCPP( vector[ int ]& t_fire, vector[ int ]& amp_fire, vector[ int ]& maxt_fire, vector[int]& diff_fire,
-                                    double* waveform, int delay, int threshold, int deadtime, int width, int arrlen )
+  cdef void runCFdiscriminatorCPP( vector[ int ]& t_fire, vector[ int ]& amp_fire, vector[ int ]& maxt_fire, vector[int]& diff_fire,
+                                   double* waveform, int delay, int threshold, int deadtime, int width, int arrlen )
                                    
 
 cpdef pyRunCFdiscriminatorCPP( np.ndarray[DTYPE_t, ndim=1] waveform, int delay, int threshold, int deadtime, int width ):

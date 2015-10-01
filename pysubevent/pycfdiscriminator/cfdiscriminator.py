@@ -5,7 +5,7 @@ from collections import Sequence
 import operator
 
 # cythonized function
-import pysubevent.cycfdiscriminator as cycfd
+import pysubevent.pycfdiscriminator.cycfdiscriminator as cycfd
 
 # Single discriminator
 
