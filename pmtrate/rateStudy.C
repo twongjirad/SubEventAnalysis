@@ -53,8 +53,8 @@ void rateStudy() {
 
   for (int ch = 0; ch < NCH; ++ch) {
 
-    if ( ch==26 || ch==27 )
-      continue;
+    //if ( ch==26 || ch==27 )
+    //continue;
 
     //Graph points and errors
     Double_t x[NRUNS];

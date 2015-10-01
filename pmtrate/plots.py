@@ -110,19 +110,21 @@ if __name__ == "__main__":
 
     input = "pmtratestudy/run1536.root"
     output = "pmtratestudy/figs/run1536"
-    if len(sys.argv)==4:
-        input = sys.argv[1]
-        output = sys.argv[2]
-        run = int(sys.argv[3])
+    #if len(sys.argv)==4:
+    #    input = sys.argv[1]
+    #    output = sys.argv[2]
+    #    run = int(sys.argv[3])
 
-    files = os.listdir( "pmtratestudy" )
+    folder = "../../data/pmtratedata/processed"
+    files = os.listdir( folder )
     for f in files:
         if ".root" not in f.strip():
             continue
-        if "filter" not in f.strip():
+        if "filterreconnect" not in f.strip():
             continue
-        input = "pmtratestudy/"+f.strip()
-        output = "pmtratestudy/figs/"+f.strip()[:-len(".root")]
+        #input = "pmtratestudy/"+f.strip()
+        input = folder+"/"+f.strip()
+        output = "pmtratestudy/filterreconnect_figs/"+f.strip()[:-len(".root")]
         try:
             run = int( f.strip().split("_")[0][len("run"):] )
         except:
@@ -132,6 +134,6 @@ if __name__ == "__main__":
         print "PROCESS RUN ",run
         makeplots( input, output, run)
 
-    #makeplots( input, output, run)
+    makeplots( input, output, run)
     #makeplots( "test.root", "figs/test" )
 
