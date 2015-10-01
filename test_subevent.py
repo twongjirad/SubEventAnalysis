@@ -13,7 +13,7 @@ from subeventdisc import subeventdiscConfig, runSubEventDisc, runSubEventDiscCha
 import pysubevent.pedestal as ped
 import pysubevent.pmtcalib as spe
 
-from ROOT import *
+import ROOT as rt
 import array
 
 #app = QtGui.QApplication([])
@@ -213,8 +213,8 @@ def runSubEventTest( opdata, opdisplay ):
 def run_subevent_finder():
     global opdata
 
-    f = TFile("output_test_subeventfinder.root", "RECREATE" )
-    t = TTree( "subevent", "Subevent info" )
+    f = rt.TFile("output_test_subeventfinder.root", "RECREATE" )
+    t = rt.TTree( "subevent", "Subevent info" )
     # variables
     eventid = array.array('i',[0])
     nsubevents = array.array('i',[0])
