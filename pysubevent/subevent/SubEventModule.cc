@@ -6,6 +6,14 @@
 namespace subevent {
 
   int findChannelFlash( int channel, std::vector< double >& waveform, SubEventModConfig& config, Flash& opflash ) {
+    // ---------------------------------------
+    // input
+    // int channel: channel id
+    // waveform: ADCs
+    // config: SubEventModule configuration
+    // output
+    // opflash: Flash object
+    // ---------------------------------------
 
     std::vector< int > t_fire;
     std::vector< int > amp_fire;
@@ -50,4 +58,12 @@ namespace subevent {
   };
 
 
+  void getChannelFlashes( int channel, std::vector< double >& waveform, SubEventModConfig& config, std::vector<double>& postwfm ) {
+    // corresponds to cyRunSubEventDiscChannel
+    // input
+    // channel: FEMCH number
+    // waveform: ADCs
+    // config
+    // output
+  };
 }

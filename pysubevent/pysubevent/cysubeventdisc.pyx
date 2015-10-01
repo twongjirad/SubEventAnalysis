@@ -4,13 +4,16 @@ import numpy as np
 cimport numpy as np
 import math
 
-import pysubevent.cfdiscriminator as cfd
-import pysubevent.pedestal as ped
-from pysubevent.subevent import ChannelSubEvent, SubEvent
-import cysubeventdisc as cyse
+import pysubevent.pycfdiscriminator.cfdiscriminator as cfd
+import pysubevent.utils.pedestal as ped
+from pysubevent.pysubevent.subevent import ChannelSubEvent, SubEvent
+import pysubevent.pysubevent.cysubeventdisc as cyse
+
+import json
 
 import cython
 cimport cython
+from cython.operator cimport dereference as deref
 
 DTYPEUINT16 = np.uint16
 ctypedef np.uint16_t DTYPEUINT16_t
@@ -20,6 +23,25 @@ DTYPEFLOAT32 = np.float32
 ctypedef np.float32_t DTYPEFLOAT32_t
 DTYPEFLOAT = np.float
 ctypedef np.float_t DTYPEFLOAT_t
+
+
+# ====================================================================================================
+# calcScintResponse
+
+# NATIVE C+++
+from libcpp.vector cimport vector
+
+cdef extern from "scintresponse.hh" namespace "subevent":
+   cdef void calcScintResponseCPP( vector[ double ]& fexpectation, int tstart, int tend, int maxt, float sig, float maxamp, float fastconst, float slowconst, float nspertick )
+                                   
+
+cpdef pyCalcScintResponse( int tstart, int tend, int maxt, float sig, float maxamp, float fastconst, float slowconst, float nspertick ):
+    cdef vector[double] amp
+    calcScintResponseCPP( amp, tstart, tend, maxt, sig, maxamp, fastconst, slowconst, nspertick )
+    tdc = range(tstart,tend)
+    return zip(tdc,amp)
+
+# compiled python
 
 cpdef calcScintResponse( int tstart, int tend, int maxt, float sig, float maxamp, float fastconst, float slowconst, float nspertick ):
     """
@@ -67,6 +89,36 @@ cpdef calcScintResponse( int tstart, int tend, int maxt, float sig, float maxamp
 
     return expect
 
+# ====================================================================================================
+# findOneSubEvent
+# Native c++
+
+cimport SubEventModConfig
+from SubEventModConfig cimport SubEventModConfig
+from pysubeventmodconfig import pySubEventModConfig
+from subeventdata cimport Flash
+from subeventdata import pyFlash
+
+cdef extern from "SubEventModule.hh" namespace "subevent":
+    cdef int findChannelFlash( int channel, vector[double]& waveform, SubEventModConfig& config, Flash& returned_flash )
+
+# python wrapper to native c++
+cpdef findOneSubEventCPP( int channel, np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, pyconfig ):
+    """
+    channel: int
+    waveform: numpy array
+    config: pySubEventModConfig
+    """
+    cdef int nsubevents = 0
+    cdef Flash opflash
+    cdef SubEventModConfig* cppconfig = new SubEventModConfig()
+    nsubevents = findChannelFlash( channel, waveform, deref(cppconfig), opflash )
+    #ChannelSubEvent( ch, tstart, tend, tmax, maxamp, expectation )
+    flash = pyFlash( opflash.ch, opflash.tstart, opflash.tend, opflash.tmax, opflash.maxamp, opflash.expectation )
+    flash.waveform = opflash.waveform
+    return flash
+
+# compiled python
 cpdef findOneSubEvent( np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, cfdconf, config, ch ):
     """
     waveform: numpy array
@@ -150,6 +202,7 @@ cpdef cyRunSubEventDiscChannel( np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, confi
     while nsubevents<maxsubevents:
         # find subevent
         subevent = findOneSubEvent( wfm, cfdconf, config, ch )
+        
         if subevent is not None:
             subevents.append(subevent)
         else:
@@ -172,18 +225,4 @@ cpdef cyRunSubEventDiscChannel( np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, confi
         return subevents
 
 
-
-# ====================================================================================================
-# NATIVE C+++
-from libcpp.vector cimport vector
-
-cdef extern from "pysubevent/scintresponse.hh" namespace "cpysubevent":
-   cdef void calcScintResponseCPP( vector[ float ]& fexpectation, int tstart, int tend, int maxt, float sig, float maxamp, float fastconst, float slowconst, float nspertick )
-                                   
-
-cpdef pyCalcScintResponse( int tstart, int tend, int maxt, float sig, float maxamp, float fastconst, float slowconst, float nspertick ):
-    cdef vector[float] amp
-    calcScintResponseCPP( amp, tstart, tend, maxt, sig, maxamp, fastconst, slowconst, nspertick )
-    tdc = range(tstart,tend)
-    return zip(tdc,amp)
 

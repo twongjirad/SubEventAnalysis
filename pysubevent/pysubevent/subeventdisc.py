@@ -1,34 +1,13 @@
 import os,sys
 import json
 import numpy as np
-import pysubevent.cfdiscriminator as cfd
-import pysubevent.pedestal as ped
-from pysubevent.subevent import ChannelSubEvent, SubEvent
+import pysubevent.pysubevent.cysubeventdisc as cyse
+import pysubevent.pycfdiscriminator.cfdiscriminator as cfd
+from pysubevent.pysubevent.subeventconfig import subeventdiscConfig
+import pysubevent.utils.pedestal as ped
+from pysubevent.pysubevent.subevent import ChannelSubEvent, SubEvent
 import math 
-import cysubeventdisc as cyse
 
-# Single discriminator
-class subeventdiscConfig:
-    def __init__( self, discrname, configfile):
-        self.discrname = discrname
-        self.loadFromFile( configfile )
-            
-    def loadFromFile( self, configfile ):
-        f = open( configfile )
-        #s = f.readlines()
-        jconfig = json.load( f )
-        self.threshold = int(jconfig['config'][self.discrname]['threshold'])  # threshold
-        self.deadtime  = int(jconfig['config'][self.discrname]['deadtime'])   # deadtme
-        self.delay     = int(jconfig['config'][self.discrname]['delay'])      # delay
-        self.width     = int(jconfig['config'][self.discrname]['width'])      # sample width to find max ADC
-        self.gate      = int(jconfig['config'][self.discrname]['gate'])       # coincidence gate
-        self.fastfraction = float(jconfig["fastfraction"])
-        self.slowfraction = float(jconfig["slowfraction"])
-        self.fastconst    = float(jconfig["fastconst"])
-        self.slowconst    = float(jconfig["slowconst"])
-        self.pedsamples   = 100
-        self.pedmaxvar    = 1.0
-        f.close()
 
 def prob_exp( a, b, alpha ):
     return np.exp( -1.0*alpha*a) - np.exp( -1.0*alpha*b )
@@ -247,8 +226,8 @@ def makeSubEventAccumulators( chsubevents, gatehalfwidth, opdata, pmtspe, HGSLOT
     npe_acc: numpy array
     """
     
-    nch_acc = np.zeros( opdata.getSampleLength(), dtype=np.int ) # for number of hits
-    npe_acc = np.zeros( opdata.getSampleLength(), dtype=np.float ) # for number of pe
+    nch_acc = np.zeros( opdata.getNBeamWinSamples(), dtype=np.int ) # for number of hits
+    npe_acc = np.zeros( opdata.getNBeamWinSamples(), dtype=np.float ) # for number of pe
     hgwfms = opdata.getData( slot=HGSLOT )
     lgwfms = opdata.getData( slot=LGSLOT )
     for ch,chsubevent in chsubevents.items():
@@ -271,8 +250,8 @@ def makeSubEventAccumulators( chsubevents, gatehalfwidth, opdata, pmtspe, HGSLOT
         # fill accumulator
         for subevent in chsubevent:
             pe = gainfactor*float( subevent.maxamp - chped )/float(chspe)
-            nch_acc[ np.maximum(0,subevent.tstart-gatehalfwidth) : np.minimum( opdata.getSampleLength(), subevent.tstart+gatehalfwidth ) ] += 1
-            npe_acc[ np.maximum(0,subevent.tstart-gatehalfwidth) : np.minimum( opdata.getSampleLength(), subevent.tstart+gatehalfwidth ) ] += pe
+            nch_acc[ np.maximum(0,subevent.tstart-gatehalfwidth) : np.minimum( opdata.getNBeamWinSamples(), subevent.tstart+gatehalfwidth ) ] += 1
+            npe_acc[ np.maximum(0,subevent.tstart-gatehalfwidth) : np.minimum( opdata.getNBeamWinSamples(), subevent.tstart+gatehalfwidth ) ] += pe
     return nch_acc, npe_acc
 
 
@@ -332,7 +311,7 @@ def formSubEvents( opdata, config, pmtspe, retpostwfm=False, hgslot=5, lgslot=6,
             se.tpeak = tpeak
             se.nchsubevents = ncollected # 22447
             se.hitmax = np.max( se.hitacc )
-            se.pemax  = np.max( se.peacc )
+            se.ampmax  = np.max( se.peacc )
 
             if ncollected==0:
                 break

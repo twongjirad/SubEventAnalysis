@@ -1,4 +1,5 @@
 #ifndef __FLASH_HH__
+#define __FLASH_HH__
 
 #include "TObject.h"
 #include <vector>
