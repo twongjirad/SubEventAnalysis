@@ -2,16 +2,22 @@ import os,sys
 import ROOT as rt
 import numpy as np
 from array import array
+import json
 
 
 # pylard
-from pyqtgraph.Qt import QtGui, QtCore
-import pyqtgraph as pg
+try:
+    from pyqtgraph.Qt import QtGui, QtCore
+    import pyqtgraph as pg
+    from pylard.pylardisplay.opdetdisplay import OpDetDisplay
+    PYQTGRAPH = True
+except:
+    PYQTGRAPH = False
 from pylard.pylardata.wfopdata import WFOpData
 from pylard.pylardata.rawdigitsopdata import RawDigitsOpData
 from pysubevent.pedestal import getpedestal
 from pysubevent.cfdiscriminator import cfdiscConfig, runCFdiscriminator
-from pylard.pylardisplay.opdetdisplay import OpDetDisplay
+
 
 NCHANS = 32
 
@@ -63,22 +69,21 @@ def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False, V
     pulsetree.Branch( 'chmaxamp',pchmaxamp,'chmaxamp/F' )
 
     first_event = opdata.first_event
-    if VISUALIZE:
+    if VISUALIZE and PYQTGRAPH:
         opdisplay = OpDetDisplay( opdata )
         opdisplay.show()
 
-    for ievent in range(first_event,first_event+nevents+1):
+    more = opdata.getEvent( first_event )
+    ievent = first_event
+    #for ievent in range(first_event,first_event+nevents+1):
+    while more:
+
         if ievent%50==0:
             print "Event: ",ievent
         event[0] = ievent
 
         if VISUALIZE:
             more = opdisplay.gotoEvent( ievent )
-        else:
-            more = opdata.getEvent( ievent )
-        if not more:
-            print "not more"
-            break
 
         # for each event gather disc fires and sort by time
         event_times = []
@@ -89,7 +94,11 @@ def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False, V
         for femch in range(0,NCHANS):
             wfm = opdata.getData(slot=5)[:,femch]            
             discs = runCFdiscriminator( wfm, cfdsettings )
-            ped[0] = getpedestal( wfm, 10, 2 )
+            theped = getpedestal( wfm, 10, 2 )
+            if theped is None:
+                ped[0] = 2048.0
+            else:
+                ped[0] = theped
             chpedestals[femch] = ped[0]
 
             nfires[femch]  = len(discs)
@@ -123,7 +132,7 @@ def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False, V
                     disc.pchdt = tdisc - discs[idisc-1].tfire
                 else:
                     disc.pchdt = -1
-                if VISUALIZE:
+                if VISUALIZE and PYQTGRAPH:
                     discfire = pg.PlotCurveItem()
                     x = np.linspace( 15.625*(tdisc-5), 15.625*(tdisc+5+cfdsettings.deadtime), cfdsettings.deadtime+10 )
                     y = np.ones( cfdsettings.deadtime+10 )*femch
@@ -152,25 +161,50 @@ def calc_rates( inputfile, nevents, outfile, wffile=False, rawdigitfile=False, V
             print "please enjoy plot"
             raw_input()
         eventtree.Fill()
+
+        more = opdata.getNextEvent()
+        ievent = opdata.current_event
+        if not more:
+            print "no more"
+            break
+
     eventtree.Write()
     pulsetree.Write()
 
 
 def runloop():
-    for f in os.listdir( "../../data/pmtratedata/" ):
-        if ".root" not in f:
+    jsonfile = "/uboone/data/users/tmw/pmtratestudy/README_v2.json"
+    f = open(jsonfile,'r')
+    j = json.load(f)
+    f.close()
+
+    runs = j.keys()
+    runs.sort()
+
+    datafolder  = "/uboone/data/users/tmw/pmtratestudy/"
+    for strrun in runs:
+        run = int(strrun)
+        if run not in [2668]:
             continue
-        if "filter" not in f:
-            continue
-        #print f
-        input = "../../data/pmtratedata/"+f.strip()
-        output = "pmtratestudy/"+f.strip()
-        calc_rates( input, 10000, output, rawdigitfile=True, wffile=False )
-        print output
-    
+
+        prunlist = os.popen("ls %s/run%d_*.root"%(datafolder,run))
+        runlist = prunlist.readlines()
+        for f in runlist:
+            f = f.strip()
+            # use data we swizzled on near1
+            if os.stat( f ).st_size<1000:
+                continue
+            print run, f
+            input = f.strip()
+            output = datafolder+"/processed/"+os.path.basename(f).strip()
+            if os.path.exists( output ) and os.stat( output ).st_size>1000:
+                continue
+            print "RUN: input=",input," output=",output
+        calc_rates( input, 1000, output, rawdigitfile=True, wffile=False )
         
 if __name__ == "__main__":
-    app = QtGui.QApplication([])
+    if PYQTGRAPH:
+        app = QtGui.QApplication([])
     #input = "../../data/pmtbglight/run2228_pmtrawdigits_subrun0.root"
     #input = "../../data/pmttriggerdata/run2290_subrun0.root"
     #input = "../../data/pmtratedata/run1536_pmtrawdigits.root"
@@ -181,7 +215,7 @@ if __name__ == "__main__":
     #if len(sys.argv)==3:
     #    input = sys.argv[1]
     #    output = sys.argv[2]
-
+    #
     #calc_rates( input, 500, output, rawdigitfile=True, wffile=False )
 
     #import cProfile
