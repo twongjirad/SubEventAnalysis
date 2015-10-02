@@ -13,15 +13,15 @@ namespace subevent {
     Flash( int ch, int tstart, int tend, int tmax, float maxamp, std::vector< double >& expectation, std::vector< double >& waveform );
     ~Flash();
     
-    template< typename T >
-    void storeWaveform( std::vector< T >& waveform );
+    void storeWaveform( std::vector< double >& waveform );
     void storeExpectation( std::vector< double >& expectation );
 
     int ch;
     int tstart;
     int tend;
     int tmax;
-    float maxamp;
+    double maxamp;
+    double area;
     std::vector< double > expectation;
     std::vector< double > waveform;
 

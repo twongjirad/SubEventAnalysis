@@ -13,6 +13,7 @@ namespace subevent {
     float smax = exp( sig*sig/(2*slowconst*slowconst) - t_fmax/slowconst )*(1 - erf( (sig*sig - slowconst*t_fmax )/(sqrt(2.0)*sig*slowconst ) ) );
     // normalize max at fast component peak
     float As = 0.3*maxamp/smax;
+    //std::cout << "smax:" << smax << " As=" << As << std::endl;
   
     // fast component: since time const is smaller than spe response, we model as simple gaussian
     float Af = 0.8*maxamp;
@@ -35,9 +36,9 @@ namespace subevent {
       float f = Af*exp( -0.5*farg*farg );
       float s = As*exp( sig*sig/(2*slowconst*slowconst) - (t)/slowconst )*(1 - erf( (sig*sig - slowconst*(t) )/(sqrt(2.0)*sig*slowconst ) ) );
       float amp = f+s;
-      //texpectation.push_back( tstart+tdc ); // amp vs tdc
+      // std::cout << tdc << " " << t << " " << f << " " << s << std::endl;
       fexpectation.push_back( amp ); // amp vs tdc
-      if ( rising && amp>20 )
+      if ( rising && amp>5.0 )
 	rising = false;
       else if ( !rising && amp<0.1 )
 	break;

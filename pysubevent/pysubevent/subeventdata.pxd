@@ -8,6 +8,21 @@ cdef extern from "Flash.hh" namespace "subevent":
         int tstart
         int tend
         int tmax
-        float maxamp
+        double maxamp
+        double area
         vector[double] expectation
         vector[double] waveform
+
+cdef extern from "FlashList.hh" namespace "subevent":
+    cdef cppclass FlashList:
+        FlashList() except +
+        int add( Flash&& flash )
+        Flash& get( int i )
+        int size()
+        void clear()
+        void sortByTime()
+        void sortByCharge()
+        void sortByAmp()
+        bint sortedByTime()
+        bint sortedbyCharge()
+        bint sortedByAmp()

@@ -90,20 +90,61 @@ cpdef calcScintResponse( int tstart, int tend, int maxt, float sig, float maxamp
     return expect
 
 # ====================================================================================================
+# SubEventModConfig c++ wrapper
+
+from SubEventModConfig cimport SubEventModConfig
+
+cdef class pySubEventModConfig:
+    cdef SubEventModConfig* thisptr
+    cdef str discrname
+    def __cinit__( self, discrname, configfile ):
+        self.thisptr = new SubEventModConfig()
+        self.discrname = discrname
+        self.loadFromFile( configfile )
+    def __dealloc__( self ):
+        del self.thisptr
+    def loadFromFile( self, configfile ):
+        f = open( configfile )
+        jconfig = json.load( f )
+        self.thisptr.cfdconfig.threshold = int(jconfig['config'][self.discrname]['threshold'])  # threshold
+        self.thisptr.cfdconfig.deadtime  = int(jconfig['config'][self.discrname]['deadtime'])   # deadtme
+        self.thisptr.cfdconfig.delay     = int(jconfig['config'][self.discrname]['delay'])      # delay
+        self.thisptr.cfdconfig.width     = int(jconfig['config'][self.discrname]['width'])      # sample width to find max ADC
+        self.thisptr.cfdconfig.gate      = int(jconfig['config'][self.discrname]['gate'])       # coincidence gate
+        self.thisptr.fastfraction = float(jconfig["fastfraction"])
+        self.thisptr.slowfraction = float(jconfig["slowfraction"])
+        self.thisptr.fastconst_ns    = float(jconfig["fastconst"])
+        self.thisptr.slowconst_ns    = float(jconfig["slowconst"])
+        self.thisptr.pedsamples   = 100
+        self.thisptr.npresamples   = 5
+        self.thisptr.pedmaxvar    = 1.0
+        self.thisptr.spe_sigma = 4.0*15.625
+        self.thisptr.nspersample = 15.625
+        f.close()
+    property cfd_threshold:
+      def __get__(self): return self.thisptr.cfdconfig.threshold
+      def __set__(self, x0): self.thisptr.cfdconfig.threshold = x0
+    property fastconst:
+      def __get__(self): return self.thisptr.fastconst_ns
+      def __set__(self, x0): self.thisptr.fastconst_ns = x0
+    property nspersample:
+      def __get__(self): return self.thisptr.nspersample
+    property npresamples:
+      def __get__(self): return self.thisptr.npresamples
+      
+
+# ====================================================================================================
 # findOneSubEvent
 # Native c++
 
-cimport SubEventModConfig
-from SubEventModConfig cimport SubEventModConfig
-from pysubeventmodconfig import pySubEventModConfig
-from subeventdata cimport Flash
-from subeventdata import pyFlash
+from pysubevent.pysubevent.subeventdata cimport Flash
+from pysubevent.pysubevent.subeventdata import pyFlash
 
 cdef extern from "SubEventModule.hh" namespace "subevent":
     cdef int findChannelFlash( int channel, vector[double]& waveform, SubEventModConfig& config, Flash& returned_flash )
 
 # python wrapper to native c++
-cpdef findOneSubEventCPP( int channel, np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, pyconfig ):
+cpdef findOneSubEventCPP( int channel, np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, pySubEventModConfig pyconfig ):
     """
     channel: int
     waveform: numpy array
@@ -111,11 +152,14 @@ cpdef findOneSubEventCPP( int channel, np.ndarray[DTYPEFLOAT_t, ndim=1] waveform
     """
     cdef int nsubevents = 0
     cdef Flash opflash
-    cdef SubEventModConfig* cppconfig = new SubEventModConfig()
+    cdef SubEventModConfig* cppconfig = pyconfig.thisptr
     nsubevents = findChannelFlash( channel, waveform, deref(cppconfig), opflash )
-    #ChannelSubEvent( ch, tstart, tend, tmax, maxamp, expectation )
-    flash = pyFlash( opflash.ch, opflash.tstart, opflash.tend, opflash.tmax, opflash.maxamp, opflash.expectation )
-    flash.waveform = opflash.waveform
+    #flash = pyFlash( opflash.ch, opflash.tstart, opflash.tend, opflash.tmax, opflash.maxamp, np.asarray( opflash.expectation ) )
+    #print opflash.ch, opflash.tstart, opflash.tend, opflash.tmax, opflash.maxamp
+    flash = pyFlash.fromValues( opflash.ch, opflash.tstart, opflash.tend, opflash.tmax, opflash.maxamp, np.asarray( opflash.expectation ) ) 
+    flash.addWaveform( waveform[opflash.tstart:np.minimum(len(waveform), opflash.tend)] )
+    #flash = pyFlash()
+    #<Flash*>(flash.thisptr) = opflash
     return flash
 
 # compiled python
@@ -162,7 +206,10 @@ cpdef findOneSubEvent( np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, cfdconf, confi
         return ChannelSubEvent( ch, tstart, tend, tmax, maxamp, expectation )
     return None
 
+# ====================================================================================================
+# RunSubEventDiscChannel: Find subevents in a given beam window
 
+# compiled python
 cpdef cyRunSubEventDiscChannel( np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, config, ch, retpostwfm=False ):
     """
     Multiple pass strategy.
@@ -225,4 +272,47 @@ cpdef cyRunSubEventDiscChannel( np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, confi
         return subevents
 
 
+# native c++
+from subeventdata cimport FlashList
 
+cdef extern from "SubEventModule.hh" namespace "subevent":
+     cdef int getChannelFlashes( int channel, vector[double]& waveform, SubEventModConfig& config, FlashList& flashes, vector[double]& postwfm )
+
+# python wrapper to native cpp
+cpdef getChannelFlashesCPP( int channel,  np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, pySubEventModConfig pyconfig, ret_postwfm=False ):
+    """
+    returns flashes in the waveform
+
+    inputs
+    ------
+    channel
+    waveform
+    config
+    ret_postwfm: function returns the waveform left over after subevent processing (algorithm subtracts regions with pulses)
+    output
+    ------
+    list of pyFlash objects
+    ndarray, if ret_postwfm==True
+    """
+    cdef vector[double] postwfm
+    cdef FlashList cpp_flashes
+    numflashes = getChannelFlashes( channel, waveform, deref(pyconfig.thisptr), cpp_flashes, postwfm )
+    cdef np.ndarray[DTYPEFLOAT_t, ndim=1] postarr = np.asarray( postwfm )
+    if numflashes==0:
+        if ret_postwfm:
+            return [],postarr
+        else:
+            return []
+    
+    # package flashes
+    flashes = []
+    cpp_flashes.sortByTime()
+    for i in range(0,cpp_flashes.size()):
+        flash = pyFlash.fromValues( cpp_flashes.get(i).ch, cpp_flashes.get(i).tstart, cpp_flashes.get(i).tend, cpp_flashes.get(i).tmax, cpp_flashes.get(i).maxamp, np.asarray( cpp_flashes.get(i).expectation ) )
+        flash.addWaveform( waveform[ cpp_flashes.get(i).tstart: np.minimum( len(waveform), cpp_flashes.get(i).tend ) ] )
+        flashes.append( flash )
+    
+    if ret_postwfm:
+        return flashes,postarr
+    else:
+        return flashes

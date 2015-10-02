@@ -1,8 +1,10 @@
-cimport pysubeventmodconfig
 cimport SubEventModConfig
 import json
 
 cdef class pySubEventModConfig:
+    cdef SubEventModConfig* thisptr
+    def __init__( self ):
+        pass
     def __cinit__( self, discrname, configfile ):
         self.discrname = discrname
         self.loadFromFile( configfile )

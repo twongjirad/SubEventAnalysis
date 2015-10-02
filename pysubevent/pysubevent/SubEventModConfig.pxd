@@ -13,8 +13,13 @@ cdef extern from "SubEventModConfig.hh" namespace "subevent":
     cdef cppclass SubEventModConfig:
         SubEventModConfig() except +
         double spe_sigma
+        double fastfraction
+        double slowfraction
         double fastconst_ns
         double slowconst_ns
+        int npresamples
+        int pedsamples
+        double pedmaxvar
         double nspersample
         CFDiscConfig cfdconfig
 

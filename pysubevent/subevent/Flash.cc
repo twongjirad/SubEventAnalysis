@@ -1,8 +1,10 @@
 #include "Flash.hh"
+#include <iostream>
+#include <algorithm>
+
+ClassImp( subevent::Flash );
 
 namespace subevent {
-
-  ClassImp( Flash );
 
   Flash::Flash() {}
 
@@ -16,12 +18,11 @@ namespace subevent {
 
   Flash::~Flash() {}
 
-  template< typename T>
-  void Flash::storeWaveform( std::vector< T >& waveform_ ) {
+  void Flash::storeWaveform( std::vector< double >& waveform_ ) {
     waveform.clear();
     waveform.reserve( waveform_.size() );
 
-    for ( typename std::vector< T >::iterator it=waveform_.begin(); it!=waveform_.end(); it++ ) {
+    for ( std::vector< double >::iterator it=waveform_.begin(); it!=waveform_.end(); it++ ) {
       waveform.push_back( (double)*it );
     }
   }
@@ -30,8 +31,10 @@ namespace subevent {
     expectation.clear();
     expectation.reserve( expectation_.size() );    
     for ( std::vector< double >::iterator it=expectation_.begin(); it!=expectation_.end(); it++ ) {
+      //std::cout << *it << " ";
       expectation.push_back( *it );
     }    
+    //std::cout << std::endl;
   }
-
+  
 }
