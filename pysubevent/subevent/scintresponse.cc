@@ -12,11 +12,22 @@ namespace subevent {
     float t_fmax = 105.0;   // numerically solved for det. smearing=3.5*15.625 ns, decay time const= 6 ns
     float smax = exp( sig*sig/(2*slowconst*slowconst) - t_fmax/slowconst )*(1 - erf( (sig*sig - slowconst*t_fmax )/(sqrt(2.0)*sig*slowconst ) ) );
     // normalize max at fast component peak
-    float As = 0.3*maxamp/smax;
+    float As = 0.3*maxamp/smax; 
     //std::cout << "smax:" << smax << " As=" << As << std::endl;
   
     // fast component: since time const is smaller than spe response, we model as simple gaussian
     float Af = 0.8*maxamp;
+
+    // 0.3 and 0.8 are kind of made up!
+//     float fast_integral = Af*sig*sqrt(2.0*3.14159);
+//     float target_slow_cdf_fract = 1.0/fast_integral;
+//     float target_slow_t = -log( 1.0-target_slow_cdf_fract )*slowconst;
+//     std::cout << "fast=" << fast_integral << " maxamp=" << maxamp << " t=" << target_slow_t << std::endl;
+
+    if ( maxamp<30.0 ) { // single pe level
+      Af = maxamp;
+      As = 0.0;
+    }
 
     int arrlen = tend-tstart;
     bool rising = true;
@@ -40,7 +51,8 @@ namespace subevent {
       fexpectation.push_back( amp ); // amp vs tdc
       if ( rising && amp>5.0 )
 	rising = false;
-      else if ( !rising && amp<0.1 )
+      //else if ( (!rising && amp<0.1) || (t>target_slow_t && amp<5.0) )
+      else if ( (!rising && amp<0.1) )
 	break;
     }
   }

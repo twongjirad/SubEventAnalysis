@@ -297,6 +297,7 @@ cpdef getChannelFlashesCPP( int channel,  np.ndarray[DTYPEFLOAT_t, ndim=1] wavef
     cdef vector[double] postwfm
     cdef FlashList cpp_flashes
     numflashes = getChannelFlashes( channel, waveform, deref(pyconfig.thisptr), cpp_flashes, postwfm )
+    print "ch=",channel," numflashes=",numflashes
     cdef np.ndarray[DTYPEFLOAT_t, ndim=1] postarr = np.asarray( postwfm )
     if numflashes==0:
         if ret_postwfm:
