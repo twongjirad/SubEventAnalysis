@@ -1,6 +1,6 @@
 cimport subeventdata
 cimport numpy as np
-cimport numpy as np
+import numpy as np
 
 def makePyFlashFromValues( cls, int ch, int tstart, int tend, int tmax, float maxamp, np.ndarray[np.float_t,ndim=1] expectation ):
     obj = cls()
@@ -50,4 +50,19 @@ cdef class pyFlash:
     property tmax:
         def __get__(self): return self.thisptr.tmax
         def __set__(self,x): self.thisptr.tmax = x
+
+
+from libcpp.map cimport map
+
+cdef class pyWaveformData:
+    cdef WaveformData* thisptr
+    def __cinit__(self, np.ndarray[np.float_t,ndim=2] wfms ):
+        self.thisptr = new WaveformData()
+        for ch in range(0,wfms.shape[1]):
+            self.thisptr.set( ch, wfms[:,ch] )
+    def __dealloc__(self):
+        del self.thisptr
+    def get( self, int ch ):
+        return np.asarray( self.thisptr.get( ch ) )
+
 
