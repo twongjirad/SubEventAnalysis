@@ -13,6 +13,7 @@ try:
     PYQTGRAPH = True
 except:
     PYQTGRAPH = False
+
 from pylard.pylardata.wfopdata import WFOpData
 from pylard.pylardata.rawdigitsopdata import RawDigitsOpData
 from pysubevent.pedestal import getpedestal

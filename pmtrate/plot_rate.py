@@ -5,6 +5,9 @@ from datetime import datetime
 
 gStyle.SetOptStat(0)
 
+# start 9/18
+maxdays = 15
+
 folder = "../../data/pmtratedata/processed"
 filelist = "../../data/pmtratedata/README_v2.json"
 f = open( filelist, 'r' )
@@ -102,7 +105,7 @@ for strrun in runs:
 # make graph
 c.cd()
 c.Draw()
-haxis = TH2D("haxis",";hours;rate (kHz)",100,-2.0, 12*24.0, 100, 0, 400.0 )
+haxis = TH2D("haxis",";hours;rate (kHz)",100,-2.0, maxdays*24.0, 100, 0, 400.0 )
 haxis.Draw()
 tgraphs = {}
 
