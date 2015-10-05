@@ -27,9 +27,18 @@
 using namespace std;
 
 void plotter() {
+
+  gStyle->SetOptStat(0);
+  gStyle->SetTitleSize(0.05,"X");
+  gStyle->SetTitleSize(0.05,"Y");
+
+  float maxdiffmax = 200.;
+  float maxhitmax = 15.0;
+
   
   //Grab the tree from the file
-  TFile* f = TFile::Open("../output_femsim_nnhits_run2194.root");
+  //TFile* f = TFile::Open("../output_femsim_nnhits_run2194_1.5pethresh.root");
+  TFile* f = TFile::Open("../run3090_10adcthresh.root");
   TTree* t = (TTree *)f->Get("fem");
 
   //Set the branches
@@ -60,9 +69,9 @@ void plotter() {
 #if 1
   //all mode
   int total = 0; //Used to normalize histograms.
-  TH1F* h1 = new TH1F("h1", "maxhits all", 25, 0, 25);
-  TH1F* h2 = new TH1F("h2", "maxdiff all", 1000, 0, 1000);
-  TH2F* h3 = new TH2F("h3", "2d all", 25, 0, 25, 1000, 0, 1000);
+  TH1F* h1 = new TH1F("h1", "", 25, 0, 25);
+  TH1F* h2 = new TH1F("h2", "", 1000, 0, 1000);
+  TH2F* h3 = new TH2F("h3", "", 25, 0, 25, 1000, 0, 1000);
 
   //Set up drawing
   TCanvas* c1 = new TCanvas("c", "c", 0, 0, 1600, 800);
@@ -70,9 +79,9 @@ void plotter() {
   TPad *pad2 = new TPad("pad1", "ch0", 0.65, 0.51, 0.99, 0.99);
   TPad *pad3 = new TPad("pad3", "ch1", 0.65, 0.01, 0.99, 0.49);
 
-  pad1->SetFillColor(18);
-  pad2->SetFillColor(18);
-  pad3->SetFillColor(18);
+  pad1->SetFillColor(0);
+  pad2->SetFillColor(0);
+  pad3->SetFillColor(0);
 
   c1->cd();
 
@@ -83,14 +92,14 @@ void plotter() {
   for (Int_t i = 0; i < nentries; i++) {
     t->GetEntry(i);
     total++;
-    for (int j = 0; j < maxhits; j++) {
+    for (int j = 0; j < maxhits+1; j++) {
       h1->Fill(j);
     }
-    for (int j = 0; j < maxdiff; j++) {
+    for (int j = 0; j < maxdiff+1; j++) {
       h2->Fill(j);
     }
-    for (int j = 0; j < maxhits; j++) {
-      for (int k = 0; k < maxdiff; k++) {
+    for (int j = 0; j < maxhits+1; j++) {
+      for (int k = 0; k < maxdiff+1; k++) {
         h3->Fill(j, k);
       }
     }
@@ -101,21 +110,25 @@ void plotter() {
   pad2->cd();
   h1->Scale(1./(float)total);
   h1->Draw("colz");
-  h1->GetXaxis()->SetTitle("Max Hits");
-  h1->GetYaxis()->SetTitle("Fraction of Total");
+  h1->GetXaxis()->SetTitle("Max Coincident Hits");
+  h1->GetYaxis()->SetTitle("Fraction of Beam Spills Kept");
+  h1->GetXaxis()->SetRangeUser(0,maxhitmax);
 
   pad3->cd();
   h2->Scale(1./(float)total);
   h2->SetLineColor(2);
   h2->Draw("colz");
-  h2->GetXaxis()->SetTitle("Max Diff");
-  h2->GetYaxis()->SetTitle("Fraction of Total");
+  h2->GetXaxis()->SetTitle("Sum of Max Diff");
+  h2->GetYaxis()->SetTitle("Fraction of Beam Spills Kept");
+  h2->GetXaxis()->SetRangeUser(0,maxdiffmax);
 
   pad1->cd();
   h3->Scale(1./(float)total);
   h3->Draw("colz");
-  h3->GetXaxis()->SetTitle("Max Hits");
-  h3->GetYaxis()->SetTitle("Max Diff");
+  h3->GetXaxis()->SetTitle("Max Coincident Hits");
+  h3->GetYaxis()->SetTitle("Sum of Max Diff");
+  h3->GetXaxis()->SetRangeUser(0,maxhitmax);
+  h3->GetYaxis()->SetRangeUser(0,maxdiffmax);
 
   h1->Write();
   h2->Write();
@@ -124,8 +137,16 @@ void plotter() {
 
   //Loop over groups
   for (Int_t group = 1; group < 6; group++) {
-#if 0
+#if 1
     //nn mode
+    char cnnname[50];
+    sprintf( cnnname, "cnn%d", group );
+    TCanvas* cnn = new TCanvas( cnnname, cnnname, 1200, 600 );
+    cnn->Divide(2,1);
+    cnn->cd(2)->Divide(1,2);
+    cnn->Draw();
+    
+      
     int totalnn = 0;
     stringstream nnHitName, nnDiffName, nnAllName;
     stringstream nnHist1, nnHist2, nnHist3;
@@ -156,22 +177,35 @@ void plotter() {
       }
     }
 
+    cnn->cd(2)->cd(1);
     h4->Scale(1./(float)totalnn);
     h4->GetXaxis()->SetTitle("Max Hits");
     h4->GetYaxis()->SetTitle("Fraction of Total");
+    h4->GetXaxis()->SetRangeUser(0,maxhitmax);
+    h4->Draw();
 
+    cnn->cd(2)->cd(2);
     h5->Scale(1./(float)totalnn);
     h5->SetLineColor(2);
     h5->GetXaxis()->SetTitle("Max Diff");
     h5->GetYaxis()->SetTitle("Fraction of Total");
+    h5->GetXaxis()->SetRangeUser(0,maxdiffmax);
+    h5->Draw();
 
+    cnn->cd(1);
     h6->Scale(1./(float)totalnn);
     h6->GetXaxis()->SetTitle("Max Hits");
     h6->GetYaxis()->SetTitle("Max Diff");
+    h6->GetXaxis()->SetRangeUser(0,maxhitmax);
+    h6->GetYaxis()->SetRangeUser(0,maxdiffmax);
+    h6->Draw("COLZ");
 
     h4->Write();
     h5->Write();
     h6->Write();
+    
+    cnn->Update();
+
 #endif
 
 #if 0

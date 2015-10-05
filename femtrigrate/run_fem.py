@@ -9,25 +9,19 @@ import array
 from pylard.pylardata.wfopdata import WFOpData
 from pylard.pylardata.rawdigitsopdata import RawDigitsOpData
 
-#sub-event code
-from pysubevent.cfdiscriminator import cfdiscConfig, runCFdiscriminator
-#from cfdiscriminator import cfdiscConfig, runCFdiscriminator
-from pysubevent.femsim import FEMconfig, runFEMsim, runFEMsimChannel
+# FEM sim code
+from pysubevent.femsim.femsim import FEMconfig, runFEMsim, runFEMsimChannel
 from nntrigger import formnntrigger
 from zotrigger import formzotrigger
 
-def run_fem():
+def run_fem( input, output ):
     #  expects 'raw_wf_tree'
-    #fname='/Users/twongjirad/working/uboone/data/FlasherData_080715/wf_run004.root'
-    #fname = "../../data/pmttriggerdata/run1807_pmtrawdigits.root"
-    fname = "../../data/pmttriggerdata/run2194_pmtrawdigits.root"
-    #fname='../wf_run001.root'
-
     femconfig = FEMconfig( os.environ["SUBEVENTDATA"]+"/fem.json" )
     #opdata = WFOpData( fname )
-    opdata = RawDigitsOpData( fname )
+    opdata = RawDigitsOpData( input )
 
-    out = rt.TFile( "output_femsim_nnhits_run2194_1.5pethresh.root", "RECREATE" )
+    #@out = rt.TFile( "output_femsim_nnhits_run2194_1.5pethresh.root", "RECREATE" )
+    out = rt.TFile( output, "RECREATE" )
     eventid = array.array( 'i', [0] )  # event number
     winid   = array.array( 'i', [0] )  # window number (split total samples in 1.6 us chunks)
     maxhits = array.array( 'i', [0] )  # max hits from trigger analysis
@@ -69,10 +63,11 @@ def run_fem():
     beamsamples = int(beamwin/15.625)
 
     eventid[0] = 0
-    more = opdata.getEvent( eventid[0] )
+    more = opdata.getNextEvent()
+    eventid[0] = opdata.current_event
 
     while more:
-        trigs, maxadcs, femmaxdiff, femchtriggers, femchmaxadcs, femchdiffs  = runFEMsim( opdata.getData(slot=5), femconfig, maxch=32 )
+        trigs, maxadcs, femmaxdiff, femchtriggers, femchmaxadcs, femchdiffs  = runFEMsim( opdata.getData(slot=5), femconfig, maxch=32, use_spe=False )
         nwindows = len(trigs["discr1"])/(beamsamples+1)
         for iwin in xrange(0,nwindows):
             start = iwin*beamsamples
@@ -114,8 +109,8 @@ def run_fem():
             tree.Fill()
             winid[0] = iwin
 
-        eventid[0] += 1
-        more = opdata.getEvent( eventid[0] )
+        more = opdata.getNextEvent()
+        eventid[0] = opdata.current_event
         print "Event: ",eventid[0], more
         if eventid[0]>=100:
             break
@@ -125,4 +120,11 @@ def run_fem():
 if __name__ == "__main__":
     #import cProfile
     #cProfile.run( 'run_fem()', sort='cumulative' )
-    run_fem()
+    
+    if len(sys.argv)==3:
+        input = sys.argv[1]
+        output = sys.argv[2]
+        print "INPUT: ",input
+        print "OUTPUT: ",output
+
+    run_fem( input, output)

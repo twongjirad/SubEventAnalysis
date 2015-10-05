@@ -1,6 +1,6 @@
 import os,sys
 import numpy as np
-from pysubevent.pmtnn import getNthNeighbor, getZorderNeighbors
+from pysubevent.utils.pmtnn import getNthNeighbor, getZorderNeighbors
 
 # Nearest neighbor trigger formation
 
