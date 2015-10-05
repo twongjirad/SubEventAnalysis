@@ -1,8 +1,8 @@
 import os
 import numpy as np
 import json
-from cfdiscriminator import cfdiscConfig
-from pmtcalib import getCalib
+from pysubevent.pycfdiscriminator.cfdiscriminator import cfdiscConfig
+from pysubevent.utils.pmtcalib import getCalib
 
 # FEM simulation
 class FEMconfig:
