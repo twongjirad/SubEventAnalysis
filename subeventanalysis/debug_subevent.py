@@ -1,7 +1,7 @@
 import os,sys
 import numpy as np
 
-vis = True
+vis = False
 
 if vis:
     try:
@@ -57,7 +57,7 @@ def test_getChannelFlashes( ch, opdata, seconfig, opdisplay=None ):
         wfm = wfms[:,ch]
         flashes, postwfm = getChannelFlashesCPP( ch, wfm, seconfig, ret_postwfm=True )
         print "channel=",ch,":  number of flashes=",len(flashes)
-        postwfm -= 2048.0
+        postwfm -= poswfm[0]
         if opdisplay is not None:
             print "visualize! ",flashes
             for flash in flashes:
@@ -70,6 +70,21 @@ def test_getChannelFlashes( ch, opdata, seconfig, opdisplay=None ):
             opdisplay.addUserWaveformItem( plot_postwfm, ch=ch )
             
     print flashes
+
+from pysubevent.pysubevent.cysubeventdisc import pyWaveformData
+
+def test_runSubEventFinder( opdata, seconfig, opdisplay=None ):
+    opdata.getEvent(8)
+    wfms = prepWaveforms( opdata )   # extract numpy arrays
+    pywfms = pyWaveformData( wfms )  # package
+    
+    from pysubevent.pysubevent.cysubeventdisc import formSubEventsCPP
+    import pysubevent.utils.pmtcalib as spe
+    pmtspe = spe.getCalib( "../config/pmtcalib_20150930.json" )
+    subevents = formSubEventsCPP( pywfms, seconfig, pmtspe )
+    for subevent in subevents:
+        print subevents, "t=",subevent.tstart_sample
+    
 
 if __name__ == "__main__":
 
@@ -95,7 +110,8 @@ if __name__ == "__main__":
 
     if ok:
         #test_findonesubevent( 0, opdata, config, opdisplay=opdisplay )
-        test_getChannelFlashes( 0, opdata, config, opdisplay=opdisplay )
+        #test_getChannelFlashes( 0, opdata, config, opdisplay=opdisplay )
+        test_runSubEventFinder( opdata, config, opdisplay=opdisplay )
 
 
     if vis and ( (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION')):
