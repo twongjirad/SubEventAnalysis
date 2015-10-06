@@ -51,18 +51,61 @@ cdef class pyFlash:
         def __get__(self): return self.thisptr.tmax
         def __set__(self,x): self.thisptr.tmax = x
 
+# ======================================================
+#   SUBEVENT
+# ======================================================
 
-from libcpp.map cimport map
-
-cdef class pyWaveformData:
-    cdef WaveformData* thisptr
-    def __cinit__(self, np.ndarray[np.float_t,ndim=2] wfms ):
-        self.thisptr = new WaveformData()
-        for ch in range(0,wfms.shape[1]):
-            self.thisptr.set( ch, wfms[:,ch] )
-    def __dealloc__(self):
+cdef class pySubEvent:
+    cdef SubEvent* thisptr
+    def __cinit__( self ):
+        self.thisptr = NULL
+    def __dealloc__( self ):
         del self.thisptr
-    def get( self, int ch ):
-        return np.asarray( self.thisptr.get( ch ) )
+    def getFlash( self, i ):
+        if self.thisptr==NULL:
+            print "pySubEvent pointer to c++ class is NULL! Cannot load any flashes"
+            return
+        apyflash = pyFlash()
+        apyflash.thisptr = &(self.thisptr.flashes.get( i ))
+        return apyflash
+    def getFlashList( self ):
+        flashlist = []
+        for iflash in range(0,self.thisptr.flashes.size()):
+            flashlist.append( self.getFlash( iflash ) )
+        return flashlist
+    property tstart_sample:
+        def __get__(self): return self.thisptr.tstart_sample
+    property tstart_end:
+        def __get__(self): return self.thisptr.tend_sample
+    property totpe:
+        def __get__(self): return self.thisptr.totpe
+    property maxamp:
+        def __get__(self): return self.thisptr.maxamp
+            
+
+cdef makePySubEventFromObject( SubEvent* subevent ):
+    obj = pySubEvent()
+    obj.thisptr = subevent
+    return obj
 
 
+cdef class pySubEventList:
+    cdef SubEventList* thisptr
+    def __cint__(self):
+        self.thisptr = NULL
+    def get( self, i ):
+        return makePySubEventFromObject( self.thisptr.get(i) )
+    def sortByTime(self):
+        self.thisptr.sortByTime()
+    def sortByCharge(self):
+        self.thisptr.sortByCharge()
+    def sortByAmp(self):
+        self.thisptr.sortByAmp()
+    property size:
+        def __get__(self): return self.thisptr.size()
+    property sortedbytime:
+        def __get__(self): return self.thisptr.sortedByTime()
+    property sortedbycharge:
+        def __get__(self): return self.thisptr.sortedByCharge()
+    property sortedbyamp:
+        def __get__(self): return self.thisptr.sortedByAmp()

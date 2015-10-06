@@ -27,9 +27,35 @@ cdef extern from "FlashList.hh" namespace "subevent":
         bint sortedbyCharge()
         bint sortedByAmp()
 
+cdef extern from "SubEvent.hh" namespace "subevent":
+    cdef cppclass SubEvent:
+        SubEvent() except +
+        int tstart_sample
+        int tend_sample
+        double tstart_ns
+        double tend_ns
+        double totpe
+        double maxamp
+        FlashList flashes
+
+cdef extern from "SubEventList.hh" namespace "subevent":
+    cdef cppclass SubEventList:
+        SubEventList() except +
+        int add( SubEvent&& flash )
+        SubEvent& get( int i )
+        int size()
+        void clear()
+        void sortByTime()
+        void sortByCharge()
+        void sortByAmp()
+        bint sortedByTime()
+        bint sortedByCharge()
+        bint sortedByAmp()
+
 cdef extern from "WaveformData.hh" namespace "subevent":
     cdef cppclass WaveformData:
         WaveformData() except +
         vector[double]& get( int channel )
         void set( int channel, vector[double]& wfm )
-        
+
+

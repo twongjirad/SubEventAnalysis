@@ -24,9 +24,198 @@ ctypedef np.float32_t DTYPEFLOAT32_t
 DTYPEFLOAT = np.float
 ctypedef np.float_t DTYPEFLOAT_t
 
+# ====================================================================================================
+# SubEvent Data Types
+# ====================================================================================================
+
+from subeventdata cimport Flash, FlashList, SubEvent, SubEventList, WaveformData
+cimport numpy as np
+import numpy as np
+
+# PyFlash
+# -------
+
+def makePyFlashFromValues( cls, int ch, int tstart, int tend, int tmax, float maxamp, np.ndarray[np.float_t,ndim=1] expectation ):
+    obj = cls()
+    obj.fillValues( ch, tstart, tend, tmax, maxamp, expectation )
+    return obj
+
+cdef class pyFlash:
+    cdef Flash* thisptr
+    fromValues = classmethod( makePyFlashFromValues )
+    #cdef fromValues( cls,  int ch, int tstart, int tend, int tmax, float maxamp, np.ndarray[np.float_t,ndim=1] expectation ):
+    #    obj = pyFlash()
+    #    obj.fillValues( ch, tstart, tend, tmax, maxamp, expectation )
+    #    return obj
+    def __cinit__( self ):
+        pass
+    def fillValues( self, int ch, int tstart, int tend, int tmax, float maxamp, np.ndarray[np.float_t,ndim=1] expectation ):
+        self.thisptr = new Flash()
+        self.thisptr.ch = ch
+        self.thisptr.tstart = tstart
+        self.thisptr.tend   = tend
+        self.thisptr.tmax   = tmax
+        self.thisptr.maxamp = maxamp
+        self.thisptr.expectation = expectation
+        print "filled flash"
+    def __dealloc__( self ):
+        del self.thisptr
+    def addWaveform( self, np.ndarray[np.float_t,ndim=1] waveform ):
+        self.thisptr.waveform = waveform
+    property waveform:
+        def __get__( self ): return self.thisptr.waveform
+        def __set__( self, wfm ): self.addWaveform( wfm )
+    property expectation:
+        def __get__(self): return self.thisptr.expectation
+        def __set__(self, np.ndarray[np.float_t,ndim=1] wfm): self.thisptr.expectation = wfm
+    property ch:
+        def __get__(self): return self.thisptr.ch
+        def __set__(self, int x): self.thisptr.ch = x
+    property tstart:
+        def __get__(self): return self.thisptr.tstart
+        def __set__(self,x): self.thisptr.tstart = x
+    property tend:
+        def __get__(self): return self.thisptr.tend
+        def __set__(self,x): self.thisptr.tend = x
+    property maxamp:
+        def __get__(self): return self.thisptr.maxamp
+        def __set__(self,x): self.thisptr.maxamp = x
+    property tmax:
+        def __get__(self): return self.thisptr.tmax
+        def __set__(self,x): self.thisptr.tmax = x
+
+
+#  pySubEvent
+# ------------
+
+cdef class pySubEvent:
+    cdef SubEvent* thisptr
+    def __cinit__( self ):
+        self.thisptr = NULL
+    def __dealloc__( self ):
+        del self.thisptr
+    def getFlash( self, i ):
+        if self.thisptr==NULL:
+            print "pySubEvent pointer to c++ class is NULL! Cannot load any flashes"
+            return
+        apyflash = pyFlash()
+        apyflash.thisptr = &(self.thisptr.flashes.get( i ))
+        return apyflash
+    def getFlashList( self ):
+        flashlist = []
+        for iflash in range(0,self.thisptr.flashes.size()):
+            flashlist.append( self.getFlash( iflash ) )
+        return flashlist
+    property tstart_sample:
+        def __get__(self): return self.thisptr.tstart_sample
+    property tstart_end:
+        def __get__(self): return self.thisptr.tend_sample
+    property totpe:
+        def __get__(self): return self.thisptr.totpe
+    property maxamp:
+        def __get__(self): return self.thisptr.maxamp
+            
+
+cdef makePySubEventFromObject( SubEvent* subevent ):
+    obj = pySubEvent()
+    obj.thisptr = subevent
+    return obj
+
+
+cdef class pySubEventList:
+    cdef SubEventList* thisptr
+    def __cint__(self):
+        self.thisptr = NULL
+    def get( self, i ):
+        return makePySubEventFromObject( &(self.thisptr.get(i)) )
+    def sortByTime(self):
+        self.thisptr.sortByTime()
+    def sortByCharge(self):
+        self.thisptr.sortByCharge()
+    def sortByAmp(self):
+        self.thisptr.sortByAmp()
+    property size:
+        def __get__(self): return self.thisptr.size()
+    property sortedbytime:
+        def __get__(self): return self.thisptr.sortedByTime()
+    property sortedbycharge:
+        def __get__(self): return self.thisptr.sortedByCharge()
+    property sortedbyamp:
+        def __get__(self): return self.thisptr.sortedByAmp()
+
+
+# pyWaveformData
+# ---------------
+
+cdef class pyWaveformData:
+    cdef WaveformData* thisptr
+    def __cinit__(self, np.ndarray[np.float_t,ndim=2] wfms ):
+        self.thisptr = new WaveformData()
+        for ch in range(0,wfms.shape[1]):
+            self.thisptr.set( ch, wfms[:,ch] )
+    def __dealloc__(self):
+        del self.thisptr
+    def get( self, int ch ):
+        return np.asarray( self.thisptr.get( ch ) )
+
+
+# SubEventModConfig c++ wrapper
+# ------------------------------
+
+from SubEventModConfig cimport SubEventModConfig
+
+cdef class pySubEventModConfig:
+    cdef SubEventModConfig* thisptr
+    cdef str discrname
+    def __cinit__( self, discrname, configfile ):
+        self.thisptr = new SubEventModConfig()
+        self.discrname = discrname
+        self.loadFromFile( configfile )
+    def __dealloc__( self ):
+        del self.thisptr
+    def loadFromFile( self, configfile ):
+        f = open( configfile )
+        jconfig = json.load( f )
+        self.thisptr.cfdconfig.threshold = int(jconfig['config'][self.discrname]['threshold'])  # threshold
+        self.thisptr.cfdconfig.deadtime  = int(jconfig['config'][self.discrname]['deadtime'])   # deadtme
+        self.thisptr.cfdconfig.delay     = int(jconfig['config'][self.discrname]['delay'])      # delay
+        self.thisptr.cfdconfig.width     = int(jconfig['config'][self.discrname]['width'])      # sample width to find max ADC
+        self.thisptr.cfdconfig.gate      = int(jconfig['config'][self.discrname]['gate'])       # coincidence gate
+        self.thisptr.fastfraction = float(jconfig["fastfraction"])
+        self.thisptr.slowfraction = float(jconfig["slowfraction"])
+        self.thisptr.fastconst_ns    = float(jconfig["fastconst"])
+        self.thisptr.slowconst_ns    = float(jconfig["slowconst"])
+        self.thisptr.pedsamples   = 100
+        self.thisptr.npresamples   = 5
+        self.thisptr.pedmaxvar    = 1.0
+        self.thisptr.spe_sigma = 4.0*15.625
+        self.thisptr.nspersample = 15.625
+        self.thisptr.hgslot = 5
+        self.thisptr.lgslot = 6
+        self.thisptr.flashgate = int(jconfig["flashgate"])
+        self.thisptr.maxsubeventloops = 50
+        self.thisptr.ampthresh = float(jconfig["ampthresh"])
+        self.thisptr.hitthresh = int(jconfig["hitthresh"])
+        f.close()
+    property cfd_threshold:
+      def __get__(self): return self.thisptr.cfdconfig.threshold
+      def __set__(self, x0): self.thisptr.cfdconfig.threshold = x0
+    property fastconst:
+      def __get__(self): return self.thisptr.fastconst_ns
+      def __set__(self, x0): self.thisptr.fastconst_ns = x0
+    property nspersample:
+      def __get__(self): return self.thisptr.nspersample
+    property npresamples:
+      def __get__(self): return self.thisptr.npresamples
+
 
 # ====================================================================================================
+# SubEventModule Routines
+# ====================================================================================================
+
+# ------------------------------------------------------------------------------------------
 # calcScintResponse
+# ------------------------------------------------------------------------------------------
 
 # NATIVE C+++
 from libcpp.vector cimport vector
@@ -89,56 +278,13 @@ cpdef calcScintResponse( int tstart, int tend, int maxt, float sig, float maxamp
 
     return expect
 
-# ====================================================================================================
-# SubEventModConfig c++ wrapper
-
-from SubEventModConfig cimport SubEventModConfig
-
-cdef class pySubEventModConfig:
-    cdef SubEventModConfig* thisptr
-    cdef str discrname
-    def __cinit__( self, discrname, configfile ):
-        self.thisptr = new SubEventModConfig()
-        self.discrname = discrname
-        self.loadFromFile( configfile )
-    def __dealloc__( self ):
-        del self.thisptr
-    def loadFromFile( self, configfile ):
-        f = open( configfile )
-        jconfig = json.load( f )
-        self.thisptr.cfdconfig.threshold = int(jconfig['config'][self.discrname]['threshold'])  # threshold
-        self.thisptr.cfdconfig.deadtime  = int(jconfig['config'][self.discrname]['deadtime'])   # deadtme
-        self.thisptr.cfdconfig.delay     = int(jconfig['config'][self.discrname]['delay'])      # delay
-        self.thisptr.cfdconfig.width     = int(jconfig['config'][self.discrname]['width'])      # sample width to find max ADC
-        self.thisptr.cfdconfig.gate      = int(jconfig['config'][self.discrname]['gate'])       # coincidence gate
-        self.thisptr.fastfraction = float(jconfig["fastfraction"])
-        self.thisptr.slowfraction = float(jconfig["slowfraction"])
-        self.thisptr.fastconst_ns    = float(jconfig["fastconst"])
-        self.thisptr.slowconst_ns    = float(jconfig["slowconst"])
-        self.thisptr.pedsamples   = 100
-        self.thisptr.npresamples   = 5
-        self.thisptr.pedmaxvar    = 1.0
-        self.thisptr.spe_sigma = 4.0*15.625
-        self.thisptr.nspersample = 15.625
-        f.close()
-    property cfd_threshold:
-      def __get__(self): return self.thisptr.cfdconfig.threshold
-      def __set__(self, x0): self.thisptr.cfdconfig.threshold = x0
-    property fastconst:
-      def __get__(self): return self.thisptr.fastconst_ns
-      def __set__(self, x0): self.thisptr.fastconst_ns = x0
-    property nspersample:
-      def __get__(self): return self.thisptr.nspersample
-    property npresamples:
-      def __get__(self): return self.thisptr.npresamples
       
 
-# ====================================================================================================
+# ------------------------------------------------------------------------------------------
 # findOneSubEvent
-# Native c++
+# ------------------------------------------------------------------------------------------
 
-from pysubevent.pysubevent.subeventdata cimport Flash
-from pysubevent.pysubevent.subeventdata import pyFlash
+# Native c++
 
 cdef extern from "SubEventModule.hh" namespace "subevent":
     cdef int findChannelFlash( int channel, vector[double]& waveform, SubEventModConfig& config, Flash& returned_flash )
@@ -206,8 +352,10 @@ cpdef findOneSubEvent( np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, cfdconf, confi
         return ChannelSubEvent( ch, tstart, tend, tmax, maxamp, expectation )
     return None
 
-# ====================================================================================================
+
+# ------------------------------------------------------------------------------------------
 # RunSubEventDiscChannel: Find subevents in a given beam window
+# ------------------------------------------------------------------------------------------
 
 # compiled python
 cpdef cyRunSubEventDiscChannel( np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, config, ch, retpostwfm=False ):
@@ -317,3 +465,27 @@ cpdef getChannelFlashesCPP( int channel,  np.ndarray[DTYPEFLOAT_t, ndim=1] wavef
         return flashes,postarr
     else:
         return flashes
+
+# ------------------------------------------------------------------------------------------
+# formSubEvents
+# ------------------------------------------------------------------------------------------
+
+# native c++
+from libcpp.map cimport map
+        
+cdef extern from "SubEventModule.cc" namespace "subevent":
+    void formSubEvents( WaveformData& wfms, SubEventModConfig& config, map[ int, double ]& pmtspemap, SubEventList& subevents )
+
+cpdef formSubEventsCPP( pyWaveformData pywfms, pySubEventModConfig pyconfig, pmtspedict ):
+    cdef map[int,double] pmtspemap = pmtspedict # why not
+    subevents = pySubEventList()
+    subevents.thisptr = new SubEventList()
+    formSubEvents( deref(pywfms.thisptr), deref(pyconfig.thisptr), pmtspemap, deref(subevents.thisptr) )
+
+    cdef SubEvent* asubevent = NULL
+    subevents.sortByTime()
+    subeventlist = []
+    for isubevent in range(0,subevents.size):
+        subeventlist.append( subevents.get(isubevent) )
+        
+    return subeventlist
