@@ -10,6 +10,7 @@ namespace subevent {
 
   void WaveformData::set( int ch, std::vector< double >& wfm ) { 
     waveforms[ch] = std::vector< double >( wfm.begin(), wfm.end() );
+    channels.insert( ch );
   }
 
 }

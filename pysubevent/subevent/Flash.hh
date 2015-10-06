@@ -11,10 +11,11 @@ namespace subevent {
     
     Flash();
     Flash( int ch, int tstart, int tend, int tmax, float maxamp, std::vector< double >& expectation, std::vector< double >& waveform );
+    Flash( const Flash& orig ); // copy constructor
     ~Flash();
     
-    void storeWaveform( std::vector< double >& waveform );
-    void storeExpectation( std::vector< double >& expectation );
+    void storeWaveform( const std::vector< double >& waveform );
+    void storeExpectation( const std::vector< double >& expectation );
 
     int ch;
     int tstart;
@@ -22,6 +23,7 @@ namespace subevent {
     int tmax;
     double maxamp;
     double area;
+    bool claimed;
     std::vector< double > expectation;
     std::vector< double > waveform;
 

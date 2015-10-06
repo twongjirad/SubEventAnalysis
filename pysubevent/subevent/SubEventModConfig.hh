@@ -24,6 +24,14 @@ namespace subevent {
     double nspersample;
     int maxchflashes;
 
+    int hgslot;
+    int lgslot;
+
+    int flashgate;
+    int maxsubeventloops;
+    double ampthresh;
+    int hitthresh;
+
     cpysubevent::CFDiscConfig cfdconfig;
 
   };
