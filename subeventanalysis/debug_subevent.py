@@ -57,9 +57,9 @@ def test_getChannelFlashes( ch, opdata, seconfig, opdisplay=None ):
         wfm = wfms[:,ch]
         flashes, postwfm = getChannelFlashesCPP( ch, wfm, seconfig, ret_postwfm=True )
         print "channel=",ch,":  number of flashes=",len(flashes)
-        postwfm -= poswfm[0]
         if opdisplay is not None:
             print "visualize! ",flashes
+            postwfm -= poswfm[0]
             for flash in flashes:
                 chsubevent = makeFlashPlotItem( flash, seconfig )
                 opdisplay.addUserWaveformItem( chsubevent, ch=ch)
@@ -71,19 +71,28 @@ def test_getChannelFlashes( ch, opdata, seconfig, opdisplay=None ):
             
     print flashes
 
-from pysubevent.pysubevent.cysubeventdisc import pyWaveformData
+from pysubevent.pysubevent.cysubeventdisc import pyWaveformData, pySubEventIO, pySubEventList
 
-def test_runSubEventFinder( opdata, seconfig, opdisplay=None ):
+def test_runSubEventFinder( opdata, seconfig, filename, opdisplay=None ):
+
     opdata.getEvent(8)
     wfms = prepWaveforms( opdata )   # extract numpy arrays
     pywfms = pyWaveformData( wfms )  # package
+    for i in range(0,wfms.shape[1]):
+        print "ch ",i,": max=",np.max(wfms[:,i])
+
+    subeventio = pySubEventIO( filename, 'w' )
+
     
     from pysubevent.pysubevent.cysubeventdisc import formSubEventsCPP
     import pysubevent.utils.pmtcalib as spe
     pmtspe = spe.getCalib( "../config/pmtcalib_20150930.json" )
     subevents = formSubEventsCPP( pywfms, seconfig, pmtspe )
-    for subevent in subevents:
-        print subevents, "t=",subevent.tstart_sample
+    for subevent in subevents.getlist():
+        print subevents, "t=",subevent.tstart_sample, " nflashes=",len(subevent.getFlashList())
+    subeventio.transferSubEventList( subevents )
+    subeventio.fill()
+    subeventio.write()
     
 
 if __name__ == "__main__":
@@ -111,7 +120,7 @@ if __name__ == "__main__":
     if ok:
         #test_findonesubevent( 0, opdata, config, opdisplay=opdisplay )
         #test_getChannelFlashes( 0, opdata, config, opdisplay=opdisplay )
-        test_runSubEventFinder( opdata, config, opdisplay=opdisplay )
+        test_runSubEventFinder( opdata, config, "test.root", opdisplay=opdisplay )
 
 
     if vis and ( (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION')):

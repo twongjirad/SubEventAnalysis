@@ -1,5 +1,6 @@
 cimport cython
 from libcpp.vector cimport vector
+from libcpp.string cimport string
 
 cdef extern from "Flash.hh" namespace "subevent":
     cdef cppclass Flash:
@@ -59,3 +60,9 @@ cdef extern from "WaveformData.hh" namespace "subevent":
         void set( int channel, vector[double]& wfm )
 
 
+cdef extern from "SubEventIO.hh" namespace "subevent":
+    cdef cppclass SubEventIO:
+        SubEventIO( string filename, string mode )
+        void transferSubEventList( SubEventList* subevents )
+        void write()
+        void fill()

@@ -10,6 +10,7 @@ def makePyFlashFromValues( cls, int ch, int tstart, int tend, int tmax, float ma
 cdef class pyFlash:
     cdef Flash* thisptr
     fromValues = classmethod( makePyFlashFromValues )
+    cdef bint isowner
     #cdef fromValues( cls,  int ch, int tstart, int tend, int tmax, float maxamp, np.ndarray[np.float_t,ndim=1] expectation ):
     #    obj = pyFlash()
     #    obj.fillValues( ch, tstart, tend, tmax, maxamp, expectation )
@@ -24,7 +25,8 @@ cdef class pyFlash:
         self.thisptr.tmax   = tmax
         self.thisptr.maxamp = maxamp
         self.thisptr.expectation = expectation
-        print "filled flash"
+        
+        #print "filled flash"
     def __dealloc__( self ):
         del self.thisptr
     def addWaveform( self, np.ndarray[np.float_t,ndim=1] waveform ):

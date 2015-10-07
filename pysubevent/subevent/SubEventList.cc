@@ -1,27 +1,29 @@
 #include "SubEventList.hh"
 
+ClassImp( subevent::SubEventList );
+
 namespace subevent {
 
   SubEventList::SubEventList() {
-    fSubEventes.reserve(10);
+    fSubEvents.reserve(10);
   }
   SubEventList::~SubEventList() {}
 
   int SubEventList::add( SubEvent&& opflash ) {
-    fSubEventes.emplace_back( opflash );
-    return fSubEventes.size();
+    fSubEvents.emplace_back( opflash );
+    return fSubEvents.size();
   }
 
   SubEvent& SubEventList::get( int i ) {
-    return fSubEventes.at(i);
+    return fSubEvents.at(i);
   }
 
   SubEventListIter SubEventList::begin() {
-    return fSubEventes.begin();
+    return fSubEvents.begin();
   }
   
   SubEventListIter SubEventList::end() {
-    return fSubEventes.end();
+    return fSubEvents.end();
   }
 
   void SubEventList::sortByTime() {

@@ -1,6 +1,7 @@
 #ifndef __SubEventList__
 #define __SubEventList__
 
+#include "TObject.h"
 #include "SubEvent.hh"
 #include <vector>
 
@@ -8,27 +9,29 @@ namespace subevent {
 
   typedef std::vector< SubEvent >::iterator SubEventListIter;
 
-  class SubEventList { 
+  class SubEventList : public TObject { 
 
   public:
     SubEventList();
     ~SubEventList();
-    
+
+#ifndef __CINT__    
     int add( SubEvent&& opflash );
+#endif
     SubEvent& get( int i );
     SubEventListIter begin();
     SubEventListIter end();
     void sortByTime();
     void sortByCharge();
     void sortByAmp();
-    int size() { return fSubEventes.size(); };
-    void clear() { fSubEventes.clear(); fSubEventes.reserve(20); };
+    int size() { return fSubEvents.size(); };
+    void clear() { fSubEvents.clear(); fSubEvents.reserve(20); };
     bool sortedByTime() { if (sortMethod==kByTime) return true; else return false; }; 
     bool sortedByCharge() { if (sortMethod==kByCharge) return true; else return false; }; 
     bool sortedByAmp() { if (sortMethod==kByAmp) return true; else return false; }; 
 
   protected:
-    std::vector< SubEvent > fSubEventes;
+    std::vector< SubEvent > fSubEvents;
 
     typedef enum { kUnsorted=-1, kByTime, kByCharge, kByAmp } SortMethod_t;
     SortMethod_t sortMethod;
@@ -48,6 +51,7 @@ namespace subevent {
       else return false;
     };
 
+    ClassDef( SubEventList, 1 )
 
   };
 

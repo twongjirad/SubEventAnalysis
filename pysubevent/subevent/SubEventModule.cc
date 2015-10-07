@@ -25,7 +25,8 @@ namespace subevent {
     std::vector< int > amp_fire;
     std::vector< int > maxt_fire;
     std::vector< int > diff_fire;
-
+    //std::cout << "CFD config: " << config.cfdconfig.delay << " " <<  config.cfdconfig.threshold << " " <<  config.cfdconfig.deadtime << " " <<  config.cfdconfig.width << std::endl;
+    
     cpysubevent::runCFdiscriminatorCPP( t_fire, amp_fire, maxt_fire, diff_fire, waveform.data(), 
 					config.cfdconfig.delay, config.cfdconfig.threshold, config.cfdconfig.deadtime, config.cfdconfig.width, waveform.size() );
 
@@ -86,6 +87,7 @@ namespace subevent {
 
     //  find subevent
     int maxsubevents = config.maxchflashes;
+    //std::cout << "  maxsubevents=" << maxsubevents << std::endl;
     int nsubevents = 0;
     int t = 0;
     double fx = 0.0;
@@ -99,6 +101,7 @@ namespace subevent {
       // find one subevent (finds the largest flash of light)
       Flash opflash;
       int found = findChannelFlash( channel, postwfm, config, opflash );
+      //std::cout << "[getChannelFlashes] Found  " << found << " flashes in channel " << channel << std::endl;
       if ( found==0 )
 	break;
       
@@ -130,6 +133,7 @@ namespace subevent {
       int ch = *it;
       std::vector< double > postwfm;
       getChannelFlashes( ch, wfms.get( ch ), config, flashes, postwfm );
+      std::cout << "search for flashes in channel=" << ch << ". found=" << flashes.size() << std::endl;
     }
   };
 

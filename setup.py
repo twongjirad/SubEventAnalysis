@@ -33,7 +33,7 @@ print rootlibs
 
 def makedicts():
     os.system("rm pysubevent/subevent/dictsubevent.*")
-    os.system("rootcint pysubevent/subevent/dictsubevent.cxx -c -I./pysubevent/subevent Flash.hh SubEvent.hh pysubevent/subevent/LinkDef.h")
+    os.system("rootcint pysubevent/subevent/dictsubevent.cxx -c -I./pysubevent/subevent Flash.hh FlashList.hh SubEvent.hh SubEventList.hh pysubevent/subevent/LinkDef.h")
 
     os.system("rm pysubevent/cfdiscriminator/dictcfdiscdata.*")
     os.system("rootcint pysubevent/cfdiscriminator/dictcfdiscdata.cxx -c -I./pysubevent/cfdiscriminator CFDFire.hh pysubevent/cfdiscriminator/LinkDef.h")
@@ -41,7 +41,9 @@ def makedicts():
 makedicts()
 
 ext_subeventdata = Extension( "pysubevent/subevent/libsubeventdata",
-                              ["pysubevent/subevent/SubEvent.cc","pysubevent/subevent/Flash.cc", "pysubevent/subevent/dictsubevent.cxx","pysubevent/subevent/FlashList.cc", ],
+                              ["pysubevent/subevent/SubEvent.cc","pysubevent/subevent/Flash.cc", "pysubevent/subevent/WaveformData.cc",
+                               "pysubevent/subevent/dictsubevent.cxx","pysubevent/subevent/FlashList.cc", "pysubevent/subevent/SubEventList.cc",
+                               "pysubevent/subevent/SubEventIO.cc"],
                               library_dirs=[rootlibdir],
                               include_dirs=[rootincdir],
                               extra_compile_args=['-std=c++11'],
@@ -60,14 +62,16 @@ cyext_subevent = Extension("pysubevent/pysubevent/cysubeventdisc",
                            include_dirs=["pysubevent/subevent",rootincdir,"pysubevent/cfdiscriminator"],
                            library_dirs=["pysubevent/subevent",builddir+"/pysubevent/subevent",rootlibdir],
                            libraries=["subeventdata","subeventdisc"]+rootlibs,
+                           extra_compile_args=['-std=c++11'],
                            language='c++')
 
-cyext_subeventdata = Extension("pysubevent/pysubevent/subeventdata",
-                               ["pysubevent/pysubevent/subeventdata.pyx"],
-                               include_dirs=["pysubevent/subevent",rootincdir,"pysubevent/cfdiscriminator"],
-                               library_dirs=["pysubevent/subevent",builddir+"/pysubevent/subevent",rootlibdir],
-                               libraries=["subeventdata","subeventdisc"]+rootlibs,
-                               language='c++')
+#cyext_subeventdata = Extension("pysubevent/pysubevent/subeventdata",
+#                               ["pysubevent/pysubevent/subeventdata.pyx"],
+#                               include_dirs=["pysubevent/subevent",rootincdir,"pysubevent/cfdiscriminator"],
+#                               library_dirs=["pysubevent/subevent",builddir+"/pysubevent/subevent",rootlibdir],
+#                               libraries=["subeventdata","subeventdisc"]+rootlibs,
+#                               extra_compile_args=['-std=c++11'],
+#                               language='c++')
 
 ext_cfdiscdata = Extension( "pysubevent/cfdiscriminator/libcfdiscdata",
                             ["pysubevent/cfdiscriminator/CFDFire.cc","pysubevent/cfdiscriminator/dictcfdiscdata.cxx"],
@@ -87,11 +91,11 @@ cyext_cfdisc = Extension("pysubevent/pycfdiscriminator/cycfdiscriminator",
                          library_dirs=["pysubevent/cfdiscriminator",builddir+"/pysubevent/cfdiscriminator",rootlibdir],
                          libraries=["cfdiscriminator","cfdiscdata"]+rootlibs,
                          language="c++")
-cythonExtensions = cythonize([cyext_cfdisc,cyext_subeventdata,cyext_subevent])
+cythonExtensions = cythonize([cyext_cfdisc,cyext_subevent])
 
 setup(
     name='pysubevent',
-    ext_modules=[ext_cfdiscdata, ext_cfdisc,ext_subeventdata,ext_subeventdisc]+cythonExtensions,
+    ext_modules=[ext_cfdiscdata, ext_cfdisc,ext_subeventdisc,ext_subeventdata]+cythonExtensions,
     include_dirs=[numpy.get_include()],
-    packages=['pysubevent','pysubevent/pysubevent','pysubevent/pycfdiscriminator','pysubevent/utils'],
+    packages=['pysubevent','pysubevent/pysubevent','pysubevent/pycfdiscriminator','pysubevent/femsim','pysubevent/utils'],
 )  

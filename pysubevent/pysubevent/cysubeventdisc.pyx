@@ -43,12 +43,13 @@ def makePyFlashFromValues( cls, int ch, int tstart, int tend, int tmax, float ma
 cdef class pyFlash:
     cdef Flash* thisptr
     fromValues = classmethod( makePyFlashFromValues )
+    cdef bint __isowner
     #cdef fromValues( cls,  int ch, int tstart, int tend, int tmax, float maxamp, np.ndarray[np.float_t,ndim=1] expectation ):
     #    obj = pyFlash()
     #    obj.fillValues( ch, tstart, tend, tmax, maxamp, expectation )
     #    return obj
     def __cinit__( self ):
-        pass
+        self.__isowner = True
     def fillValues( self, int ch, int tstart, int tend, int tmax, float maxamp, np.ndarray[np.float_t,ndim=1] expectation ):
         self.thisptr = new Flash()
         self.thisptr.ch = ch
@@ -57,9 +58,9 @@ cdef class pyFlash:
         self.thisptr.tmax   = tmax
         self.thisptr.maxamp = maxamp
         self.thisptr.expectation = expectation
-        print "filled flash"
     def __dealloc__( self ):
-        del self.thisptr
+        if self.__isowner:
+            del self.thisptr
     def addWaveform( self, np.ndarray[np.float_t,ndim=1] waveform ):
         self.thisptr.waveform = waveform
     property waveform:
@@ -83,6 +84,9 @@ cdef class pyFlash:
     property tmax:
         def __get__(self): return self.thisptr.tmax
         def __set__(self,x): self.thisptr.tmax = x
+    property isowner:
+        def __get__(self): return self.__isowner
+        def __set__(self,bint x): self.__isowner = x
 
 
 #  pySubEvent
@@ -90,10 +94,13 @@ cdef class pyFlash:
 
 cdef class pySubEvent:
     cdef SubEvent* thisptr
+    cdef bint __isowner
     def __cinit__( self ):
         self.thisptr = NULL
+        self.__isowner = True
     def __dealloc__( self ):
-        del self.thisptr
+        if self.__isowner and self.thisptr!=NULL:
+            del self.thisptr
     def getFlash( self, i ):
         if self.thisptr==NULL:
             print "pySubEvent pointer to c++ class is NULL! Cannot load any flashes"
@@ -104,7 +111,9 @@ cdef class pySubEvent:
     def getFlashList( self ):
         flashlist = []
         for iflash in range(0,self.thisptr.flashes.size()):
-            flashlist.append( self.getFlash( iflash ) )
+            aflash = self.getFlash( iflash )
+            aflash.isowner = False
+            flashlist.append( aflash )
         return flashlist
     property tstart_sample:
         def __get__(self): return self.thisptr.tstart_sample
@@ -114,6 +123,10 @@ cdef class pySubEvent:
         def __get__(self): return self.thisptr.totpe
     property maxamp:
         def __get__(self): return self.thisptr.maxamp
+    property isowner:
+        def __get__(self): return self.__isowner
+        def __set__(self,bint x): self.__isowner = x
+
             
 
 cdef makePySubEventFromObject( SubEvent* subevent ):
@@ -127,7 +140,14 @@ cdef class pySubEventList:
     def __cint__(self):
         self.thisptr = NULL
     def get( self, i ):
-        return makePySubEventFromObject( &(self.thisptr.get(i)) )
+        apysubevent = makePySubEventFromObject( &(self.thisptr.get(i)) )
+        apysubevent.isowner = False
+        return apysubevent
+    def getlist( self ):
+        subevents = []
+        for i in range(0,self.size):
+            subevents.append( self.get(i) )
+        return subevents
     def sortByTime(self):
         self.thisptr.sortByTime()
     def sortByCharge(self):
@@ -158,6 +178,23 @@ cdef class pyWaveformData:
     def get( self, int ch ):
         return np.asarray( self.thisptr.get( ch ) )
 
+# SubEventIO
+# -----------
+from subeventdata cimport SubEventIO
+
+cdef class pySubEventIO:
+   cdef SubEventIO* thisptr
+   def __cinit__( self, str filename, str mode ):
+       self.thisptr = new SubEventIO( filename, mode )
+   def transferSubEventList( self, pySubEventList evlist ):
+       if self.thisptr==NULL:
+           print "wrapping around empty instance"
+       self.thisptr.transferSubEventList( evlist.thisptr )
+   def fill( self ):
+       self.thisptr.fill()
+   def write( self ):
+       self.thisptr.write()
+
 
 # SubEventModConfig c++ wrapper
 # ------------------------------
@@ -187,6 +224,7 @@ cdef class pySubEventModConfig:
         self.thisptr.slowconst_ns    = float(jconfig["slowconst"])
         self.thisptr.pedsamples   = 100
         self.thisptr.npresamples   = 5
+        self.thisptr.maxchflashes = 30
         self.thisptr.pedmaxvar    = 1.0
         self.thisptr.spe_sigma = 4.0*15.625
         self.thisptr.nspersample = 15.625
@@ -445,7 +483,7 @@ cpdef getChannelFlashesCPP( int channel,  np.ndarray[DTYPEFLOAT_t, ndim=1] wavef
     cdef vector[double] postwfm
     cdef FlashList cpp_flashes
     numflashes = getChannelFlashes( channel, waveform, deref(pyconfig.thisptr), cpp_flashes, postwfm )
-    print "ch=",channel," numflashes=",numflashes
+    print "ch=",channel," numflashes=",numflashes," max(waveform)=",np.max( waveform )
     cdef np.ndarray[DTYPEFLOAT_t, ndim=1] postarr = np.asarray( postwfm )
     if numflashes==0:
         if ret_postwfm:
@@ -482,10 +520,7 @@ cpdef formSubEventsCPP( pyWaveformData pywfms, pySubEventModConfig pyconfig, pmt
     subevents.thisptr = new SubEventList()
     formSubEvents( deref(pywfms.thisptr), deref(pyconfig.thisptr), pmtspemap, deref(subevents.thisptr) )
 
-    cdef SubEvent* asubevent = NULL
-    subevents.sortByTime()
-    subeventlist = []
-    for isubevent in range(0,subevents.size):
-        subeventlist.append( subevents.get(isubevent) )
-        
-    return subeventlist
+    for subevent in subevents.getlist():
+        print subevents, "t=",subevent.tstart_sample, " nflashes=",len(subevent.getFlashList())
+
+    return subevents

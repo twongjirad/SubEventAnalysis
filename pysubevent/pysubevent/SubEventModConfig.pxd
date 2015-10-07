@@ -21,6 +21,7 @@ cdef extern from "SubEventModConfig.hh" namespace "subevent":
         int pedsamples
         double pedmaxvar
         double nspersample
+        int maxchflashes
         int hgslot
         int lgslot
         int flashgate
