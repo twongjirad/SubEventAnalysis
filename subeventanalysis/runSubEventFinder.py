@@ -78,6 +78,8 @@ def runSubEventFinder( config, input, outfilename ):
         #raw_input()
         #if nevents>=50:
         #    break
+        if opdata.current_event>=1405:
+            break
         ok = opdata.getNextEvent()
 
 

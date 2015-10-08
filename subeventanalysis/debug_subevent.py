@@ -135,6 +135,8 @@ def test_runSubEventFinder( opdata, seconfig, filename, opdisplay=None ):
     subeventio.transferSubEventList( subevents )
     subeventio.fill()
     subeventio.write()
+    if opdisplay is not None:
+        opdisplay.gotoEvent( opdata.current_event )
     
 
 if __name__ == "__main__":
@@ -150,7 +152,7 @@ if __name__ == "__main__":
     fname = "../../data/pmtratedata/run2668_filterreconnect_rerun.root"
     opdata = RawDigitsOpData( fname )
     #ok = opdata.getNextEvent()
-    ok = opdata.getEvent(4)
+    ok = opdata.getEvent(8)
     if vis:
         app = QtGui.QApplication([])
         opdisplay = OpDetDisplay( opdata )
@@ -161,8 +163,8 @@ if __name__ == "__main__":
 
     if ok:
         #test_findonesubevent( 0, opdata, config, opdisplay=opdisplay )
-        #test_getChannelFlashes( 0, opdata, config, opdisplay=opdisplay )
-        test_runSubEventFinder( opdata, config, "output_debug.root", opdisplay=opdisplay )
+        test_getChannelFlashes( 0, opdata, config, opdisplay=opdisplay )
+        #test_runSubEventFinder( opdata, config, "output_debug.root", opdisplay=opdisplay )
 
 
     if vis and ( (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION')):

@@ -122,7 +122,7 @@ namespace subevent {
 	  //postwfm.at( opflash.tstart + tdc ) = slope*( tdc ) + amp_start;
 	  postwfm.at( opflash.tstart + tdc ) = chped;
 	}
-	if ( tdc<600) {
+	if ( tdc<600 && opflash.tstart+tdc+20<waveform.size() ) {
 	  if ( tdc<30 )
 	    opflash.area30 += waveform.at( opflash.tstart+tdc )-chped;
 	  opflash.area += waveform.at( opflash.tstart+tdc )-chped;
