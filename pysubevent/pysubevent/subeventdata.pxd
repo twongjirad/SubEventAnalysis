@@ -63,6 +63,10 @@ cdef extern from "WaveformData.hh" namespace "subevent":
 cdef extern from "SubEventIO.hh" namespace "subevent":
     cdef cppclass SubEventIO:
         SubEventIO( string filename, string mode )
+        int eventid
+        int nsubevents
+        double chmaxamp
         void transferSubEventList( SubEventList* subevents )
         void write()
         void fill()
+        void clearlist()

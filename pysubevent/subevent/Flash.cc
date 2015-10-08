@@ -6,7 +6,9 @@ ClassImp( subevent::Flash );
 
 namespace subevent {
 
-  Flash::Flash() {
+  Flash::Flash() :
+    area( 0.0 ), area30( 0.0 ), fcomp_gausintegral( 0.0 )
+  {
     claimed = false;
   }
 
@@ -15,11 +17,15 @@ namespace subevent {
 
     storeWaveform( waveform_ );
     storeExpectation( expectation_ );
-  
+    area = 0.0;
+    area30 = 0.0;
+    fcomp_gausintegral = 0.0;
   }
 
   Flash::Flash( const Flash& orig ) :
-    ch( orig.ch ), tstart( orig.tstart ), tend( orig.tend ), tmax( orig.tmax ), maxamp( orig.maxamp ), area( orig.area ), claimed( orig.claimed ) {
+    ch( orig.ch ), tstart( orig.tstart ), tend( orig.tend ), tmax( orig.tmax ), maxamp( orig.maxamp ), 
+    area( orig.area ), area30( orig.area30 ), fcomp_gausintegral( orig.fcomp_gausintegral), claimed( orig.claimed )
+  {
     // copy constructor
     storeWaveform( orig.waveform );
     storeExpectation( orig.expectation );

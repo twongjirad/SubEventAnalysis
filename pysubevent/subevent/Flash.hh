@@ -23,6 +23,8 @@ namespace subevent {
     int tmax;
     double maxamp;
     double area;
+    double area30;
+    double fcomp_gausintegral;
     bool claimed;
     std::vector< double > expectation;
     std::vector< double > waveform;

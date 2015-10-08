@@ -93,7 +93,10 @@ namespace subevent {
     double fx = 0.0;
     double sig = 0.0;
     double thresh = 0.0;
-    double chped = waveform.at(0);
+    double chped = 0.;
+//     for (int i=0; i<5; i++)
+//       chped += waveform.at(i);
+//     chped /= 5.0;
     
     //flashes.clear();
 
@@ -109,7 +112,8 @@ namespace subevent {
       //double amp_start = waveform.at( opflash.tstart );
       //double amp_end   = waveform.at( opflash.tend );
       //double slope = (amp_end-amp_start)/( opflash.tend-opflash.tstart );
-
+      opflash.area30 = 0.0;
+      opflash.area = 0.0;
       for (int tdc=0; tdc<opflash.expectation.size(); tdc++) {
 	fx = opflash.expectation.at(tdc);
 	sig = sqrt( fx/20.0 );
@@ -118,7 +122,13 @@ namespace subevent {
 	  //postwfm.at( opflash.tstart + tdc ) = slope*( tdc ) + amp_start;
 	  postwfm.at( opflash.tstart + tdc ) = chped;
 	}
+	if ( tdc<600) {
+	  if ( tdc<30 )
+	    opflash.area30 += waveform.at( opflash.tstart+tdc )-chped;
+	  opflash.area += waveform.at( opflash.tstart+tdc )-chped;
+	}
       }
+      opflash.fcomp_gausintegral = (opflash.maxamp-chped)*(config.spe_sigma/15.625)*sqrt(2.0)*3.14159;
       nsubevents += 1;
       flashes.add( std::move(opflash) );
     }//end of subflash search
@@ -144,7 +154,7 @@ namespace subevent {
 	continue;
 
       for ( int t=(*iflash).tstart-0.5*config.flashgate; t<(*iflash).tstart+0.5*config.flashgate; t++ ) {
-	peacc[t] += ((*iflash).maxamp-2047.0)/pmtspemap[(*iflash).ch];
+	peacc[t] += ((*iflash).maxamp)/pmtspemap[(*iflash).ch];
 	hitacc[t] += 1.0;
       }
       
@@ -210,7 +220,10 @@ namespace subevent {
 	    if ( newsubevent.tend_sample < (int)(*iflash).tend )
 	      newsubevent.tend_sample = (int)(*iflash).tend;
 	    newsubevent.maxamp = pemax;
-	    newsubevent.totpe += (*iflash).area/pmtspemap[ (*iflash).ch ];
+	    //newsubevent.totpe += (*iflash).area/pmtspemap[ (*iflash).ch ];
+	    newsubevent.totpe += (*iflash).area; // HACK
+	    newsubevent.sumflash30 += ((*iflash).area30); // HACK
+	    newsubevent.sumfcomp_gausintegral += (*iflash).fcomp_gausintegral; // HACK
 	    Flash copyflash( (*iflash ) );
 	    copyflash.claimed = true;
 	    (*iflash).claimed = true;

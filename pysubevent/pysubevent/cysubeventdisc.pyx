@@ -117,7 +117,7 @@ cdef class pySubEvent:
         return flashlist
     property tstart_sample:
         def __get__(self): return self.thisptr.tstart_sample
-    property tstart_end:
+    property tend_sample:
         def __get__(self): return self.thisptr.tend_sample
     property totpe:
         def __get__(self): return self.thisptr.totpe
@@ -194,6 +194,17 @@ cdef class pySubEventIO:
        self.thisptr.fill()
    def write( self ):
        self.thisptr.write()
+   def clearlist( self ):
+       self.thisptr.clearlist()
+   property eventid:
+       def __get__(self): return self.thisptr.eventid
+       def __set__(self,int x): self.thisptr.eventid = x
+   property nsubevents:
+       def __get__(self): return self.thisptr.nsubevents
+       def __set__(self,int x): self.thisptr.nsubevents = x
+   property chmaxamp:
+       def __get__(self): return self.thisptr.chmaxamp
+       def __set__(self,float x): self.thisptr.chmaxamp = x
 
 
 # SubEventModConfig c++ wrapper
@@ -245,6 +256,8 @@ cdef class pySubEventModConfig:
       def __get__(self): return self.thisptr.nspersample
     property npresamples:
       def __get__(self): return self.thisptr.npresamples
+    property cfddelay:
+      def __get__(self): return self.thisptr.cfdconfig.delay
 
 
 # ====================================================================================================
@@ -521,6 +534,6 @@ cpdef formSubEventsCPP( pyWaveformData pywfms, pySubEventModConfig pyconfig, pmt
     formSubEvents( deref(pywfms.thisptr), deref(pyconfig.thisptr), pmtspemap, deref(subevents.thisptr) )
 
     for subevent in subevents.getlist():
-        print subevents, "t=",subevent.tstart_sample, " nflashes=",len(subevent.getFlashList())
+        print subevents, "t=",subevent.tstart_sample,"-",subevent.tend_sample," (",subevent.tstart_sample*pyconfig.nspersample,"-",subevent.tend_sample*pyconfig.nspersample," ns) nflashes=",len(subevent.getFlashList())
 
     return subevents

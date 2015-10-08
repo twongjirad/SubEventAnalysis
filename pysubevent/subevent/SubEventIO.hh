@@ -22,11 +22,16 @@ namespace subevent {
     TTree* fTree;
     TBranch* b_subeventlist;
     SubEventList* subevents;
+    int eventid;
+    int nsubevents;
+    double chmaxamp;
 
     void defineTree();
     void transferSubEventList( SubEventList* subevents );
     void write();
     void fill();
+    void clearlist() { subevents->clear(); };
+    TTree* getTree() { return fTree; };
 
     bool branchmade;
   };

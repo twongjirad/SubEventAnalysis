@@ -19,9 +19,11 @@ namespace subevent {
     double tstart_ns;
     double tend_ns;
 
-    double totpe;
     double maxamp;
-
+    double totpe;
+    double sumflash30;
+    double sumfcomp_gausintegral;
+    
     FlashList flashes;
     
     ClassDef( SubEvent, 1 );
