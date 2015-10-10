@@ -3,7 +3,8 @@
 #include "FlashList.hh"
 #include "SubEventList.hh"
 #include "WaveformData.hh"
-#include "uboone/OpticalDetectorAna/OpticalSubEvents/cfdiscriminator_algo/cfdiscriminator.hh"
+//#include "uboone/OpticalDetectorAna/OpticalSubEvents/cfdiscriminator_algo/cfdiscriminator.hh"
+#include "cfdiscriminator.hh"
 #include "scintresponse.hh"
 #include <algorithm>
 #include <iostream>

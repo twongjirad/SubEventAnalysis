@@ -33,10 +33,10 @@ print rootlibs
 
 def makedicts():
     os.system("rm pysubevent/subevent/dictsubevent.*")
-    os.system("rootcint pysubevent/subevent/dictsubevent.cxx -c -I./pysubevent/subevent Flash.hh FlashList.hh SubEvent.hh SubEventList.hh pysubevent/subevent/LinkDef.h")
+    os.system("rootcint pysubevent/subevent/dictsubevent.cxx -c -D__BUILD_ROOT_DICT__ -I./pysubevent/subevent Flash.hh FlashList.hh SubEvent.hh SubEventList.hh pysubevent/subevent/LinkDef.h")
 
     os.system("rm pysubevent/cfdiscriminator/dictcfdiscdata.*")
-    os.system("rootcint pysubevent/cfdiscriminator/dictcfdiscdata.cxx -c -I./pysubevent/cfdiscriminator CFDFire.hh pysubevent/cfdiscriminator/LinkDef.h")
+    os.system("rootcint pysubevent/cfdiscriminator/dictcfdiscdata.cxx -c -D__BUILD_ROOT_DICT__ -I./pysubevent/cfdiscriminator CFDFire.hh pysubevent/cfdiscriminator/LinkDef.h")
 
 makedicts()
 
@@ -46,7 +46,7 @@ ext_subeventdata = Extension( "pysubevent/subevent/libsubeventdata",
                                "pysubevent/subevent/SubEventIO.cc"],
                               library_dirs=[rootlibdir],
                               include_dirs=[rootincdir],
-                              extra_compile_args=['-std=c++11'],
+                              extra_compile_args=['-std=c++11','-D__BUILD_ROOT_DICT__'],
                               libraries=rootlibs,
                               language="c++")
 ext_subeventdisc = Extension( "pysubevent/subevent/libsubeventdisc",
@@ -55,34 +55,28 @@ ext_subeventdisc = Extension( "pysubevent/subevent/libsubeventdisc",
                               include_dirs=["pysubevent/cfdiscriminator",rootincdir],
                               library_dirs=["pysubevent/cfdiscriminator",builddir+"/pysubevent/cfdiscriminator",rootlibdir],
                               libraries=["cfdiscriminator"]+rootlibs,
-                              extra_compile_args=['-std=c++11'],
+                              extra_compile_args=['-std=c++11','-D__BUILD_ROOT_DICT__'],
                               language="c++")
 cyext_subevent = Extension("pysubevent/pysubevent/cysubeventdisc",
                            ["pysubevent/pysubevent/cysubeventdisc.pyx"],
                            include_dirs=["pysubevent/subevent",rootincdir,"pysubevent/cfdiscriminator"],
                            library_dirs=["pysubevent/subevent",builddir+"/pysubevent/subevent",rootlibdir],
                            libraries=["subeventdata","subeventdisc"]+rootlibs,
-                           extra_compile_args=['-std=c++11'],
+                           extra_compile_args=['-std=c++11','-D__BUILD_ROOT_DICT__'],
                            language='c++')
-
-#cyext_subeventdata = Extension("pysubevent/pysubevent/subeventdata",
-#                               ["pysubevent/pysubevent/subeventdata.pyx"],
-#                               include_dirs=["pysubevent/subevent",rootincdir,"pysubevent/cfdiscriminator"],
-#                               library_dirs=["pysubevent/subevent",builddir+"/pysubevent/subevent",rootlibdir],
-#                               libraries=["subeventdata","subeventdisc"]+rootlibs,
-#                               extra_compile_args=['-std=c++11'],
-#                               language='c++')
 
 ext_cfdiscdata = Extension( "pysubevent/cfdiscriminator/libcfdiscdata",
                             ["pysubevent/cfdiscriminator/CFDFire.cc","pysubevent/cfdiscriminator/dictcfdiscdata.cxx"],
                             library_dirs=[rootlibdir],
                             include_dirs=[rootincdir],
                             libraries=rootlibs,
+                            extra_compile_args=['-std=c++11','-D__BUILD_ROOT_DICT__'],
                             language="c++")
 ext_cfdisc = Extension( "pysubevent/cfdiscriminator/libcfdiscriminator",
                         ["pysubevent/cfdiscriminator/CFDiscConfig.cc", "pysubevent/cfdiscriminator/cfdiscriminator.cc"],
                         library_dirs=[rootlibdir],
                         include_dirs=[rootincdir],
+                        extra_compile_args=['-std=c++11','-D__BUILD_ROOT_DICT__'],
                         libraries=rootlibs,
                         language="c++")
 cyext_cfdisc = Extension("pysubevent/pycfdiscriminator/cycfdiscriminator",
@@ -90,6 +84,7 @@ cyext_cfdisc = Extension("pysubevent/pycfdiscriminator/cycfdiscriminator",
                          include_dirs=["pysubevent/cfdiscriminator"],
                          library_dirs=["pysubevent/cfdiscriminator",builddir+"/pysubevent/cfdiscriminator",rootlibdir],
                          libraries=["cfdiscriminator","cfdiscdata"]+rootlibs,
+                         extra_compile_args=['-std=c++11','-D__BUILD_ROOT_DICT__'],
                          language="c++")
 cythonExtensions = cythonize([cyext_cfdisc,cyext_subevent])
 
