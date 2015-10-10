@@ -1,7 +1,7 @@
 #ifndef __SubEventModConfig__
 #define __SubEventModConfig__
 
-#include "CFDiscConfig.hh"
+#include "uboone/OpticalDetectorAna/OpticalSubEvents/cfdiscriminator_algo/CFDiscConfig.hh"
 
 namespace subevent {
 

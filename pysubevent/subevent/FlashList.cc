@@ -1,13 +1,17 @@
 #include "FlashList.hh"
+#include <algorithm>
+#include <iostream>
 
-ClassImp( subevent::FlashList );
+//ClassImp( subevent::FlashList )
 
 namespace subevent {
 
   FlashList::FlashList() {
-    fFlashes.reserve(10);
+    fFlashes.reserve(100);
   }
-  FlashList::~FlashList() {}
+  FlashList::~FlashList() {
+    fFlashes.clear();
+  }
 
   int FlashList::add( Flash&& opflash ) {
     fFlashes.emplace_back( opflash );

@@ -3,7 +3,7 @@
 #include "FlashList.hh"
 #include "SubEventList.hh"
 #include "WaveformData.hh"
-#include "cfdiscriminator.hh"
+#include "uboone/OpticalDetectorAna/OpticalSubEvents/cfdiscriminator_algo/cfdiscriminator.hh"
 #include "scintresponse.hh"
 #include <algorithm>
 #include <iostream>
@@ -33,7 +33,7 @@ namespace subevent {
     // find largest
     int largestCFD = -1;
     double maxamp = 0;
-    for (int n=0; n<t_fire.size(); n++) {
+    for (int n=0; n<(int)t_fire.size(); n++) {
       if ( amp_fire.at(n) > maxamp ) {
 	maxamp = amp_fire.at(n);
 	largestCFD = n;
@@ -53,24 +53,25 @@ namespace subevent {
     std::vector< double > expectation;
     expectation.reserve( 200 );
     subevent::calcScintResponseCPP( expectation, 
-				    opflash.tstart, waveform.size(), opflash.tmax, 
+				    opflash.tstart, (int)waveform.size(), opflash.tmax, 
 				    config.spe_sigma, maxamp-waveform.at( opflash.tstart ), config.fastconst_ns, config.slowconst_ns, config.nspersample );
 
-    opflash.tend = std::min( opflash.tstart+expectation.size(), waveform.size()-1 );
+    opflash.tend = std::min( opflash.tstart+(int)expectation.size(), (int)waveform.size()-1 );
     
     std::vector< double > subwfm( waveform.begin()+opflash.tstart, waveform.begin()+opflash.tend );
     opflash.storeWaveform( subwfm );
-    std::vector< double > subexp( expectation.begin(), expectation.begin()+subwfm.size() );
+    std::vector< double > subexp( expectation.begin(), expectation.begin()+(int)subwfm.size() );
     opflash.storeExpectation(  subexp );
 
     // for debug
     //std::cout << "return opflash: " << opflash.ch << " " << opflash.tstart << " " << opflash.tend << " " << opflash.tmax << " " << opflash.maxamp << std::endl;
-    //for ( int i=0; i<expectation.size(); i++)
-    //std::cout << expectation.at(i) << " ";
-    //std::cout << std::endl;
+    // std::cout << " expectation of flash: ";
+    // for ( int i=0; i<(int)expectation.size(); i++)
+    // std::cout << expectation.at(i) << " ";
+    // std::cout << std::endl;
 
     return 1;
-  };
+  }
 
   int getChannelFlashes( int channel, std::vector< double >& waveform, SubEventModConfig& config, FlashList& flashes, std::vector<double>& postwfm ) {
     // corresponds to cyRunSubEventDiscChannel
@@ -89,14 +90,13 @@ namespace subevent {
     int maxsubevents = config.maxchflashes;
     //std::cout << "  maxsubevents=" << maxsubevents << std::endl;
     int nsubevents = 0;
-    int t = 0;
     double fx = 0.0;
     double sig = 0.0;
     double thresh = 0.0;
     double chped = 0.;
-//     for (int i=0; i<5; i++)
-//       chped += waveform.at(i);
-//     chped /= 5.0;
+    // for (int i=0; i<5; i++)
+    //   chped += waveform.at(i);
+    // chped /= 5.0;
     
     //flashes.clear();
 
@@ -114,15 +114,14 @@ namespace subevent {
       //double slope = (amp_end-amp_start)/( opflash.tend-opflash.tstart );
       opflash.area30 = 0.0;
       opflash.area = 0.0;
-      for (int tdc=0; tdc<opflash.expectation.size(); tdc++) {
+      for (int tdc=0; tdc<(int)opflash.expectation.size(); tdc++) {
 	fx = opflash.expectation.at(tdc);
 	sig = sqrt( fx/20.0 );
 	thresh = fx + 3.0*sig*20.0; // 3 sigma variance
 	if ( postwfm.at( opflash.tstart )-chped < thresh ) {
-	  //postwfm.at( opflash.tstart + tdc ) = slope*( tdc ) + amp_start;
 	  postwfm.at( opflash.tstart + tdc ) = chped;
 	}
-	if ( tdc<600 && opflash.tstart+tdc+20<waveform.size() ) {
+	if ( tdc<600 && opflash.tstart+tdc+20<(int)waveform.size() ) {
 	  if ( tdc<30 )
 	    opflash.area30 += waveform.at( opflash.tstart+tdc )-chped;
 	  opflash.area += waveform.at( opflash.tstart+tdc )-chped;
@@ -135,7 +134,7 @@ namespace subevent {
       
     return nsubevents;
 
-  };
+  }
 
   void formFlashes( WaveformData& wfms, SubEventModConfig& config, FlashList& flashes ) {
 
@@ -145,7 +144,7 @@ namespace subevent {
       getChannelFlashes( ch, wfms.get( ch ), config, flashes, postwfm );
       std::cout << "search for flashes in channel=" << ch << ". found=" << flashes.size() << std::endl;
     }
-  };
+  }
 
   void fillFlashAccumulators( FlashList& flashes, std::map< int, double >& pmtspemap, SubEventModConfig& config, std::vector< double >& peacc, std::vector< double >& hitacc ) {
 
@@ -153,14 +152,17 @@ namespace subevent {
       if ( (*iflash).claimed )
 	continue;
 
-      for ( int t=(*iflash).tstart-0.5*config.flashgate; t<(*iflash).tstart+0.5*config.flashgate; t++ ) {
-	peacc[t] += ((*iflash).maxamp)/pmtspemap[(*iflash).ch];
-	hitacc[t] += 1.0;
+      int start = std::max( int( (*iflash).tstart-0.5*config.flashgate), 0 );
+      int end = std::min( int( (*iflash).tstart+0.5*config.flashgate ), (int)peacc.size() );
+      //std::cout << "add flash acc: ch=" << (*iflash).ch << " maxamp=" <<  ((*iflash).maxamp)/pmtspemap[(*iflash).ch] << " t=[" << start << ", " << end << "]" << std::endl;
+      for ( int t=start; t<end; t++ ) {
+	peacc.at(t) += ((*iflash).maxamp)/pmtspemap[(*iflash).ch];
+	hitacc.at(t) += 1.0;
       }
       
     }
 
-  };
+  }
 
   void formSubEvents( WaveformData& wfms, SubEventModConfig& config, std::map< int, double >& pmtspemap, SubEventList& subevents ) {
 
@@ -168,32 +170,37 @@ namespace subevent {
 
     FlashList flashes;
     formFlashes( wfms, config, flashes );
-
     std::cout << "  total flashes: " << flashes.size() << std::endl;
 
     int nloops = 0;
-    while ( nloops < config.maxsubeventloops ) {
+    ChannelSetIter itch=wfms.chbegin();
+    int nsamples = wfms.get( *itch ).size();
+    std::vector< double > peacc( nsamples, 0.0 );
+    std::vector< double > hitacc( nsamples, 0.0 );
 
+    while ( nloops < config.maxsubeventloops ) {
+      std::cout << " start subevent search: loop#" << nloops << std::endl;
 
       // accumulators: the summed pulse height and the number of hits
-      std::vector< double > peacc( wfms.get(0).size(), 0.0 );
-      std::vector< double > hitacc( wfms.get(0).size(), 0.0 );
+      // use first entry to set size
+      peacc.assign( nsamples, 0.0 );
+      hitacc.assign( nsamples, 0.0 );
       
       fillFlashAccumulators( flashes, pmtspemap, config, peacc, hitacc );
 
       // find maximums
-      double  hit_tmax = 0;
+      //double  hit_tmax = 0;
       double pe_tmax = 0;
       double pemax = 0;
       double hitmax = 0;
-      for ( int tick=0; tick<peacc.size(); tick++ ) {
+      for ( int tick=0; tick<(int)peacc.size(); tick++ ) {
 	if ( peacc.at(tick)>pemax ) {
 	  pemax = peacc.at(tick);
 	  pe_tmax = tick;
 	}
 	if ( hitacc.at(tick)>hitmax ) {
 	  hitmax = hitacc.at(tick);
-	  hit_tmax = tick;
+	  //hit_tmax = tick;
 	}
       }
       std::cout << "  accumulator max: t=" << pe_tmax << " amp=" << pemax << " hits=" << hitmax << std::endl;
@@ -201,8 +208,6 @@ namespace subevent {
       // organize flashes within maxima
       if ( pemax>config.ampthresh || hitmax>config.hitthresh ) {
 	// passed! 
-	std::cout << "  subevent formed. loop #" << nloops << std::endl;
-
 	SubEvent newsubevent;
 	
 	//if ( !flashes.sortedByTime()  ) flashes.sortByTime();
@@ -224,10 +229,9 @@ namespace subevent {
 	    newsubevent.totpe += (*iflash).area; // HACK
 	    newsubevent.sumflash30 += ((*iflash).area30); // HACK
 	    newsubevent.sumfcomp_gausintegral += (*iflash).fcomp_gausintegral; // HACK
-	    Flash copyflash( (*iflash ) );
-	    copyflash.claimed = true;
 	    (*iflash).claimed = true;
-	    newsubevent.flashes.add( std::move(copyflash) ); 
+	    Flash copyflash( (*iflash ) );
+	    newsubevent.flashes.add( std::move( copyflash ) ); 
 	    nclaimed++;
 	  }
 
@@ -245,7 +249,9 @@ namespace subevent {
 
       nloops += 1;
     }//end of while loop
-
-  };
+    
+    std::cout << " end of formsubevents. found " << subevents.size() << std::endl;
+    //std::cin.get();
+  }
 
 }

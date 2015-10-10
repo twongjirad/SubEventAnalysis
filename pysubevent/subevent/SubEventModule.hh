@@ -3,11 +3,11 @@
 
 #include <vector>
 #include <map>
+#include "SubEventModConfig.hh"
 #include "SubEvent.hh"
 #include "Flash.hh"
-#include "SubEventModConfig.hh"
 #include "FlashList.hh"
-#include "subEventList.hh"
+#include "SubEventList.hh"
 #include "WaveformData.hh"
 
 namespace subevent {
