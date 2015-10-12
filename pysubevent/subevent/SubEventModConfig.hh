@@ -18,6 +18,7 @@ namespace subevent {
     double slowfraction;
     double fastconst_ns;
     double slowconst_ns;
+    double noslowthreshold;
 
     int npresamples;    
     int pedsamples;

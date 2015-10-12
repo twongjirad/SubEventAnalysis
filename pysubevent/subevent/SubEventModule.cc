@@ -61,7 +61,8 @@ namespace subevent {
     expectation.reserve( 200 );
     subevent::calcScintResponseCPP( expectation, 
 				    opflash.tstart, (int)waveform.size(), opflash.tmax, 
-				    config.spe_sigma, maxamp-waveform.at( opflash.tstart ), config.fastconst_ns, config.slowconst_ns, config.nspersample );
+				    config.spe_sigma, maxamp-waveform.at( opflash.tstart ), config.fastconst_ns, config.slowconst_ns, 
+				    config.nspersample, config.fastfraction, config.slowfraction, config.noslowthreshold );
 
     opflash.tend = std::min( opflash.tstart+(int)expectation.size(), (int)waveform.size()-1 );
     
@@ -123,16 +124,24 @@ namespace subevent {
       opflash.area = 0.0;
       for (int tdc=0; tdc<(int)opflash.expectation.size(); tdc++) {
 	fx = opflash.expectation.at(tdc);
+	// ---------------------------------------------
+	// This is all a little hacky
+	// this variance threshold should be tunned better?
+	// it really serves as a first pass attempt at preventing repeated flash formation
+	// later, we will refine the subevent to look for subevents inside the late-light tail
+	// but really, someone please put xenon into the detector
 	sig = sqrt( fx/20.0 );
 	thresh = fx + 3.0*sig*20.0; // 3 sigma variance
 	if ( postwfm.at( opflash.tstart )-chped < thresh ) {
 	  postwfm.at( opflash.tstart + tdc ) = chped;
 	}
-	if ( tdc<600 && opflash.tstart+tdc+20<(int)waveform.size() ) {
+	// we cap the area calculation and keep a 20 sample buffer from the end
+	if ( tdc<600 && opflash.tstart+tdc+20<(int)waveform.size() ) { 
 	  if ( tdc<30 )
 	    opflash.area30 += waveform.at( opflash.tstart+tdc )-chped;
 	  opflash.area += waveform.at( opflash.tstart+tdc )-chped;
 	}
+	// ---------------------------------------------
       }
       opflash.fcomp_gausintegral = (opflash.maxamp-chped)*(config.spe_sigma/15.625)*sqrt(2.0)*3.14159;
       nsubevents += 1;

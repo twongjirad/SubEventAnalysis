@@ -263,6 +263,7 @@ cdef class pySubEventModConfig:
         self.thisptr.slowfraction = float(jconfig["slowfraction"])
         self.thisptr.fastconst_ns    = float(jconfig["fastconst"])
         self.thisptr.slowconst_ns    = float(jconfig["slowconst"])
+        self.thisptr.noslowthreshold = float(jconfig["noslowthreshold"])
         self.thisptr.pedsamples   = 100
         self.thisptr.npresamples   = 5
         self.thisptr.maxchflashes = 30
@@ -303,12 +304,13 @@ from libcpp.vector cimport vector
 from libcpp.string cimport string
 
 cdef extern from "scintresponse.hh" namespace "subevent":
-   cdef void calcScintResponseCPP( vector[ double ]& fexpectation, int tstart, int tend, int maxt, float sig, float maxamp, float fastconst, float slowconst, float nspertick )
+   cdef void calcScintResponseCPP( vector[ double ]& fexpectation, int tstart, int tend, int maxt, float sig, float maxamp, float fastconst, float slowconst, float nspertick,
+                                   float fastfrac, float slowfrac, float noslowthreshold )
                                    
 
 cpdef pyCalcScintResponse( int tstart, int tend, int maxt, float sig, float maxamp, float fastconst, float slowconst, float nspertick ):
     cdef vector[double] amp
-    calcScintResponseCPP( amp, tstart, tend, maxt, sig, maxamp, fastconst, slowconst, nspertick )
+    calcScintResponseCPP( amp, tstart, tend, maxt, sig, maxamp, fastconst, slowconst, nspertick, 0.8, 0.3, 30.0 )
     tdc = range(tstart,tend)
     return zip(tdc,amp)
 
@@ -423,7 +425,7 @@ cpdef findOneSubEvent( np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, cfdconf, confi
         #expectation = cyse.calcScintResponse( np.maximum(0,tmax-20), len(waveform), tmax, spe_sigma, (maxamp-cfdconf.pedestal), config.fastconst, config.slowconst, cfdconf.nspersample )
 
         # native c++
-        expectation = cyse.pyCalcScintResponse( np.maximum(0,tmax-20), len(waveform), tmax, spe_sigma, (maxamp-cfdconf.pedestal), config.fastconst, config.slowconst, cfdconf.nspersample )
+        expectation = cyse.pyCalcScintResponse( np.maximum(0,tmax-20), len(waveform), tmax, spe_sigma, (maxamp-cfdconf.pedestal), config.fastconst, config.slowconst, cfdconf.nspersample, 0.8, 0.3, 30.0 )
         
         tend = tstart + len(expectation)
 
