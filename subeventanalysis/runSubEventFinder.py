@@ -67,15 +67,17 @@ def runSubEventFinder( config, input, outfilename ):
         pywfms = pyWaveformData( wfms )  # packages
         
         subevents = formSubEventsCPP( pywfms, config, pmtspe )
+        nsubevents = subevents.size
 
         subeventio.clearlist()
         subeventio.eventid = opdata.current_event
         subeventio.chmaxamp = np.max( wfms )
-        print "chmaxamp: ",subeventio.chmaxamp-2047.0
+        print "chmaxamp: ",subeventio.chmaxamp
         subeventio.transferSubEventList( subevents )
         subeventio.fill()
         nevents += 1
-        #raw_input()
+        if nsubevents>0:
+            raw_input()
         #if nevents>=50:
         #    break
         if opdata.current_event>=1405:

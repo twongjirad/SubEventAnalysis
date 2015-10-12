@@ -54,11 +54,11 @@ def prepWaveforms( opdata ):
     return wfms,qs
             
 
-def makeFlashPlotItem( flash, seconfig ):
+def makeFlashPlotItem( flash, seconfig, color=(255,0,0,255) ):
     chsubevent = pg.PlotCurveItem()
     x = np.linspace( seconfig.nspersample*flash.tstart, seconfig.nspersample*flash.tend, len(flash.expectation) )
     y = flash.expectation
-    chsubevent.setData( x=x, y=y, pen=(255,0,0,255) )
+    chsubevent.setData( x=x, y=y, pen=color )
     return chsubevent    
 
 def test_findonesubevent( ch, opdata, seconfig, opdisplay=None ):
@@ -115,6 +115,30 @@ def test_getChannelFlashes( ch, opdata, seconfig, opdisplay=None ):
             
     print flashes
 
+from pysubevent.pysubevent.cysubeventdisc import pyWaveformData, pyFlashList, formFlashesCPP
+
+def test_secondPassFlashes( opdata, seconfig, opdisplay=None ):
+    wfms,qs = prepWaveforms( opdata )   # extract numpy arrays
+    pywfms = pyWaveformData( wfms )  # package
+    
+    # pass 1
+    flashes1, postwfms = formFlashesCPP( pywfms, seconfig, "pass1" )
+
+    # pass 2
+    flashes2, postpostwfms = formFlashesCPP( postwfms, seconfig, "pass2" )
+
+    # DRAW
+    if opdisplay is not None:
+        for flash1 in flashes1.getFlashes():
+            plot_flash = makeFlashPlotItem( flash1, seconfig )
+            opdisplay.addUserWaveformItem( plot_flash, ch=flash1.ch )
+
+        for flash2 in flashes2.getFlashes():
+            plot_flash = makeFlashPlotItem( flash2, seconfig, color=(0,255,0,255) )
+            opdisplay.addUserWaveformItem( plot_flash, ch=flash2.ch )
+            
+    
+
 from pysubevent.pysubevent.cysubeventdisc import pyWaveformData, pySubEventIO, pySubEventList
 
 def test_runSubEventFinder( opdata, seconfig, filename, opdisplay=None ):
@@ -163,8 +187,9 @@ if __name__ == "__main__":
 
     if ok:
         #test_findonesubevent( 0, opdata, config, opdisplay=opdisplay )
-        test_getChannelFlashes( 0, opdata, config, opdisplay=opdisplay )
+        #test_getChannelFlashes( 0, opdata, config, opdisplay=opdisplay )
         #test_runSubEventFinder( opdata, config, "output_debug.root", opdisplay=opdisplay )
+        test_secondPassFlashes( opdata, config, opdisplay )
 
 
     if vis and ( (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION')):

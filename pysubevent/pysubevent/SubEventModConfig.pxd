@@ -29,4 +29,5 @@ cdef extern from "SubEventModConfig.hh" namespace "subevent":
         double ampthresh
         int hitthresh
         CFDiscConfig cfdconfig
+        CFDiscConfig cfdconfig_pass2
 

@@ -12,12 +12,13 @@
 
 namespace subevent {
 
-  int findChannelFlash( int channel, std::vector< double >& waveform, SubEventModConfig& config, Flash& opflash ) {
+  int findChannelFlash( int channel, std::vector< double >& waveform, SubEventModConfig& config, std::string discrname, Flash& opflash ) {
     // ---------------------------------------
     // input
     // int channel: channel id
     // waveform: ADCs
     // config: SubEventModule configuration
+    // chooses which CFD setting to use
     // output
     // opflash: Flash object
     // ---------------------------------------
@@ -28,8 +29,13 @@ namespace subevent {
     std::vector< int > diff_fire;
     //std::cout << "CFD config: " << config.cfdconfig.delay << " " <<  config.cfdconfig.threshold << " " <<  config.cfdconfig.deadtime << " " <<  config.cfdconfig.width << std::endl;
     
-    cpysubevent::runCFdiscriminatorCPP( t_fire, amp_fire, maxt_fire, diff_fire, waveform.data(), 
-					config.cfdconfig.delay, config.cfdconfig.threshold, config.cfdconfig.deadtime, config.cfdconfig.width, waveform.size() );
+    if ( discrname!="pass2" )
+      cpysubevent::runCFdiscriminatorCPP( t_fire, amp_fire, maxt_fire, diff_fire, waveform.data(), 
+					  config.cfdconfig.delay, config.cfdconfig.threshold, config.cfdconfig.deadtime, config.cfdconfig.width, waveform.size() );
+    else
+      cpysubevent::runCFdiscriminatorCPP( t_fire, amp_fire, maxt_fire, diff_fire, waveform.data(), 
+					  config.cfdconfig_pass2.delay, config.cfdconfig_pass2.threshold, config.cfdconfig_pass2.deadtime, config.cfdconfig_pass2.width, waveform.size() );
+	
 
     // find largest
     int largestCFD = -1;
@@ -74,7 +80,7 @@ namespace subevent {
     return 1;
   }
 
-  int getChannelFlashes( int channel, std::vector< double >& waveform, SubEventModConfig& config, FlashList& flashes, std::vector<double>& postwfm ) {
+  int getChannelFlashes( int channel, std::vector< double >& waveform, SubEventModConfig& config, std::string discrname, FlashList& flashes, std::vector<double>& postwfm ) {
     // corresponds to cyRunSubEventDiscChannel
     // input
     // channel: FEMCH number
@@ -104,7 +110,7 @@ namespace subevent {
     while ( nsubevents<maxsubevents ) {
       // find one subevent (finds the largest flash of light)
       Flash opflash;
-      int found = findChannelFlash( channel, postwfm, config, opflash );
+      int found = findChannelFlash( channel, postwfm, config, discrname, opflash );
       //std::cout << "[getChannelFlashes] Found  " << found << " flashes in channel " << channel << std::endl;
       if ( found==0 )
 	break;
@@ -137,13 +143,14 @@ namespace subevent {
 
   }
 
-  void formFlashes( WaveformData& wfms, SubEventModConfig& config, FlashList& flashes ) {
+  void formFlashes( WaveformData& wfms, SubEventModConfig& config, std::string discrname, FlashList& flashes, WaveformData& postwfms ) {
 
     for ( ChannelSetIter it=wfms.chbegin(); it!=wfms.chend(); it++ ) {
       int ch = *it;
       std::vector< double > postwfm;
-      getChannelFlashes( ch, wfms.get( ch ), config, flashes, postwfm );
+      getChannelFlashes( ch, wfms.get( ch ), config, discrname, flashes, postwfm );
       std::cout << "search for flashes in channel=" << ch << ". found=" << flashes.size() << std::endl;
+      postwfms.set( ch, postwfm, wfms.isLowGain(ch) );
     }
   }
 
@@ -169,9 +176,19 @@ namespace subevent {
 
     std::cout << "FormSubEvents" << std::endl;
 
+    WaveformData postwfms; // this will store "post" waveforms. We remove sections of the waveforms used to build hits (by returning them to baseline)
+
+    // We find flashes of light on each channel. We do this in two passes: a high threshold pass to look for pulses above any background spe light.
     FlashList flashes;
-    formFlashes( wfms, config, flashes );
-    std::cout << "  total flashes: " << flashes.size() << std::endl;
+    formFlashes( wfms, config, "pass1", flashes, postwfms );
+    std::cout << "  total pass1/high-trehsold flashes: " << flashes.size() << std::endl;
+
+    WaveformData postpostwfms;
+    FlashList flashes_pass2;
+    formFlashes( postwfms, config, "pass2", flashes_pass2, postpostwfms );
+    std::cout << "  total pass2/low-threshold flashes: " << flashes_pass2.size() << std::endl;
+
+
 
     int nloops = 0;
     ChannelSetIter itch=wfms.chbegin();

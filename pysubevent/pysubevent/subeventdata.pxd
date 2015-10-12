@@ -57,7 +57,9 @@ cdef extern from "WaveformData.hh" namespace "subevent":
     cdef cppclass WaveformData:
         WaveformData() except +
         vector[double]& get( int channel )
-        void set( int channel, vector[double]& wfm )
+        void set( int channel, vector[double]& wfm, bint islowgain )
+        void setLowGain( int channel, bint islowgain )
+        bint isLowGain( int channel )
 
 
 cdef extern from "SubEventIO.hh" namespace "subevent":

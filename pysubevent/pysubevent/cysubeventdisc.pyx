@@ -89,6 +89,31 @@ cdef class pyFlash:
         def __set__(self,bint x): self.__isowner = x
 
 
+# PyFlashList
+# -----------
+cdef class pyFlashList:
+    cdef FlashList* thisptr
+    cdef bint __isowner
+    def __cint__(self):
+        self.thisptr = NULL
+        self.__isowner = True
+    def __dealloc__( self ):
+        if self.__isowner and self.thisptr!=NULL:
+            del self.thisptr
+    def getFlash( self, i ):
+        apyflash = pyFlash()
+        apyflash.thisptr = &(self.thisptr.get( i ))
+        apyflash.isowner = False
+        return apyflash
+    def getFlashes( self ):
+        flashes = []
+        for iflash in range(0,self.thisptr.size()):
+            aflash = self.getFlash( iflash )
+            flashes.append( aflash )
+        return flashes
+    property size:
+        def __get__(self): return self.thisptr.size()
+
 #  pySubEvent
 # ------------
 
@@ -172,7 +197,7 @@ cdef class pyWaveformData:
     def __cinit__(self, np.ndarray[np.float_t,ndim=2] wfms ):
         self.thisptr = new WaveformData()
         for ch in range(0,wfms.shape[1]):
-            self.thisptr.set( ch, wfms[:,ch] )
+            self.thisptr.set( ch, wfms[:,ch], False )
     def __dealloc__(self):
         del self.thisptr
     def get( self, int ch ):
@@ -229,6 +254,11 @@ cdef class pySubEventModConfig:
         self.thisptr.cfdconfig.delay     = int(jconfig['config'][self.discrname]['delay'])      # delay
         self.thisptr.cfdconfig.width     = int(jconfig['config'][self.discrname]['width'])      # sample width to find max ADC
         self.thisptr.cfdconfig.gate      = int(jconfig['config'][self.discrname]['gate'])       # coincidence gate
+        self.thisptr.cfdconfig_pass2.threshold = int(jconfig['config']["pass2"]['threshold'])  # threshold
+        self.thisptr.cfdconfig_pass2.deadtime  = int(jconfig['config']["pass2"]['deadtime'])   # deadtme
+        self.thisptr.cfdconfig_pass2.delay     = int(jconfig['config']["pass2"]['delay'])      # delay
+        self.thisptr.cfdconfig_pass2.width     = int(jconfig['config']["pass2"]['width'])      # sample width to find max ADC
+        self.thisptr.cfdconfig_pass2.gate      = int(jconfig['config']["pass2"]['gate'])       # coincidence gate
         self.thisptr.fastfraction = float(jconfig["fastfraction"])
         self.thisptr.slowfraction = float(jconfig["slowfraction"])
         self.thisptr.fastconst_ns    = float(jconfig["fastconst"])
@@ -270,6 +300,7 @@ cdef class pySubEventModConfig:
 
 # NATIVE C+++
 from libcpp.vector cimport vector
+from libcpp.string cimport string
 
 cdef extern from "scintresponse.hh" namespace "subevent":
    cdef void calcScintResponseCPP( vector[ double ]& fexpectation, int tstart, int tend, int maxt, float sig, float maxamp, float fastconst, float slowconst, float nspertick )
@@ -338,10 +369,10 @@ cpdef calcScintResponse( int tstart, int tend, int maxt, float sig, float maxamp
 # Native c++
 
 cdef extern from "SubEventModule.hh" namespace "subevent":
-    cdef int findChannelFlash( int channel, vector[double]& waveform, SubEventModConfig& config, Flash& returned_flash )
+    cdef int findChannelFlash( int channel, vector[double]& waveform, SubEventModConfig& config, string discrname, Flash& returned_flash )
 
 # python wrapper to native c++
-cpdef findOneSubEventCPP( int channel, np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, pySubEventModConfig pyconfig ):
+cpdef findOneSubEventCPP( int channel, np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, pySubEventModConfig pyconfig, str discrname ):
     """
     channel: int
     waveform: numpy array
@@ -350,7 +381,7 @@ cpdef findOneSubEventCPP( int channel, np.ndarray[DTYPEFLOAT_t, ndim=1] waveform
     cdef int nsubevents = 0
     cdef Flash opflash
     cdef SubEventModConfig* cppconfig = pyconfig.thisptr
-    nsubevents = findChannelFlash( channel, waveform, deref(cppconfig), opflash )
+    nsubevents = findChannelFlash( channel, waveform, deref(cppconfig), discrname, opflash )
     #flash = pyFlash( opflash.ch, opflash.tstart, opflash.tend, opflash.tmax, opflash.maxamp, np.asarray( opflash.expectation ) )
     #print opflash.ch, opflash.tstart, opflash.tend, opflash.tmax, opflash.maxamp
     flash = pyFlash.fromValues( opflash.ch, opflash.tstart, opflash.tend, opflash.tmax, opflash.maxamp, np.asarray( opflash.expectation ) ) 
@@ -475,10 +506,10 @@ cpdef cyRunSubEventDiscChannel( np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, confi
 from subeventdata cimport FlashList
 
 cdef extern from "SubEventModule.hh" namespace "subevent":
-     cdef int getChannelFlashes( int channel, vector[double]& waveform, SubEventModConfig& config, FlashList& flashes, vector[double]& postwfm )
+     cdef int getChannelFlashes( int channel, vector[double]& waveform, SubEventModConfig& config, string discrname, FlashList& flashes, vector[double]& postwfm )
 
 # python wrapper to native cpp
-cpdef getChannelFlashesCPP( int channel,  np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, pySubEventModConfig pyconfig, ret_postwfm=False ):
+cpdef getChannelFlashesCPP( int channel,  np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, pySubEventModConfig pyconfig, str discrname, ret_postwfm=False ):
     """
     returns flashes in the waveform
 
@@ -495,7 +526,7 @@ cpdef getChannelFlashesCPP( int channel,  np.ndarray[DTYPEFLOAT_t, ndim=1] wavef
     """
     cdef vector[double] postwfm
     cdef FlashList cpp_flashes
-    numflashes = getChannelFlashes( channel, waveform, deref(pyconfig.thisptr), cpp_flashes, postwfm )
+    numflashes = getChannelFlashes( channel, waveform, deref(pyconfig.thisptr), discrname, cpp_flashes, postwfm )
     print "ch=",channel," numflashes=",numflashes," max(waveform)=",np.max( waveform )
     cdef np.ndarray[DTYPEFLOAT_t, ndim=1] postarr = np.asarray( postwfm )
     if numflashes==0:
@@ -518,12 +549,34 @@ cpdef getChannelFlashesCPP( int channel,  np.ndarray[DTYPEFLOAT_t, ndim=1] wavef
         return flashes
 
 # ------------------------------------------------------------------------------------------
-# formSubEvents
+# formFlashes
 # ------------------------------------------------------------------------------------------
 
 # native c++
 from libcpp.map cimport map
-        
+
+cdef extern from "SubEventModule.cc" namespace "subevent":
+    void formFlashes( WaveformData& wfms, SubEventModConfig& config, string discrname, FlashList& flashes, WaveformData& postwfms )
+
+cpdef formFlashesCPP( pyWaveformData pywfms, pySubEventModConfig pyconfig, str discrname ):
+   cdef FlashList* flashes = new FlashList()
+   cdef WaveformData* postwfms = new WaveformData()
+
+   formFlashes( deref( pywfms.thisptr ), deref( pyconfig.thisptr ), discrname, deref( flashes ), deref( postwfms ) )
+   
+   pyflashes = pyFlashList()
+   pyflashes.thisptr = flashes
+   
+   blanks = np.zeros( (len(pywfms.get(0)), 32 ), dtype=np.float  )
+   pywfmdata = pyWaveformData( blanks )
+   pywfmdata.thisptr = postwfms
+   
+   return pyflashes, pywfmdata
+
+# ------------------------------------------------------------------------------------------
+# formSubEvents
+# ------------------------------------------------------------------------------------------
+
 cdef extern from "SubEventModule.cc" namespace "subevent":
     void formSubEvents( WaveformData& wfms, SubEventModConfig& config, map[ int, double ]& pmtspemap, SubEventList& subevents )
 

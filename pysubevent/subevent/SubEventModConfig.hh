@@ -34,6 +34,7 @@ namespace subevent {
     int hitthresh;
 
     cpysubevent::CFDiscConfig cfdconfig;
+    cpysubevent::CFDiscConfig cfdconfig_pass2;
 
   };
 
