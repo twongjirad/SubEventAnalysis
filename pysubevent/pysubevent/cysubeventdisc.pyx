@@ -580,15 +580,19 @@ cpdef formFlashesCPP( pyWaveformData pywfms, pySubEventModConfig pyconfig, str d
 # ------------------------------------------------------------------------------------------
 
 cdef extern from "SubEventModule.cc" namespace "subevent":
-    void formSubEvents( WaveformData& wfms, SubEventModConfig& config, map[ int, double ]& pmtspemap, SubEventList& subevents )
+    void formSubEvents( WaveformData& wfms, SubEventModConfig& config, map[ int, double ]& pmtspemap, SubEventList& subevents, FlashList& unclaimed_flashes )
 
 cpdef formSubEventsCPP( pyWaveformData pywfms, pySubEventModConfig pyconfig, pmtspedict ):
     cdef map[int,double] pmtspemap = pmtspedict # why not
     subevents = pySubEventList()
     subevents.thisptr = new SubEventList()
-    formSubEvents( deref(pywfms.thisptr), deref(pyconfig.thisptr), pmtspemap, deref(subevents.thisptr) )
+
+    pyflashlist = pyFlashList()
+    pyflashlist.thisptr = new FlashList()
+
+    formSubEvents( deref(pywfms.thisptr), deref(pyconfig.thisptr), pmtspemap, deref(subevents.thisptr), deref(pyflashlist.thisptr) )
 
     for subevent in subevents.getlist():
         print subevents, "t=",subevent.tstart_sample,"-",subevent.tend_sample," (",subevent.tstart_sample*pyconfig.nspersample,"-",subevent.tend_sample*pyconfig.nspersample," ns) nflashes=",len(subevent.getFlashList())
 
-    return subevents
+    return subevents, pyflashlist

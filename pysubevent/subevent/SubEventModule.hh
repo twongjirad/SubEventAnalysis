@@ -13,7 +13,7 @@
 namespace subevent {
   
   // Main Routine ------------------------------------------------------------
-  void formSubEvents( WaveformData& wfms, SubEventModConfig& config, std::map< int, double >& pmtspemap, SubEventList& subevents );
+  void formSubEvents( WaveformData& wfms, SubEventModConfig& config, std::map< int, double >& pmtspemap, SubEventList& subevents, FlashList& unclaimed_flashes );
   // -------------------------------------------------------------------------
 
   int findChannelFlash( int ch, std::vector<double>& waveform, SubEventModConfig& config, std::string discrname, Flash& returned_flash );

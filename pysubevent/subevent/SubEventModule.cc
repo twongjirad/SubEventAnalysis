@@ -181,7 +181,7 @@ namespace subevent {
 
   }
 
-  void formSubEvents( WaveformData& wfms, SubEventModConfig& config, std::map< int, double >& pmtspemap, SubEventList& subevents ) {
+  void formSubEvents( WaveformData& wfms, SubEventModConfig& config, std::map< int, double >& pmtspemap, SubEventList& subevents, FlashList& unclaimed_flashes ) {
 
     std::cout << "FormSubEvents" << std::endl;
 
@@ -196,8 +196,6 @@ namespace subevent {
     FlashList flashes_pass2;
     formFlashes( postwfms, config, "pass2", flashes_pass2, postpostwfms );
     std::cout << "  total pass2/low-threshold flashes: " << flashes_pass2.size() << std::endl;
-
-
 
     int nloops = 0;
     ChannelSetIter itch=wfms.chbegin();
@@ -305,10 +303,23 @@ namespace subevent {
 	  //std::cout << " adding second pass flash to subevent #" << best_subevent << std::endl;
 	  nadditions += 1;
 	}
+	else {
+	  // moved into unclaimed flashes list
+	  unclaimed_flashes.add( std::move( *iflash2 ) );
+	}
       }
     }
     std::cout << " added " << nadditions << " 2nd pass flashes to the subevents." << std::endl;
     //std::cin.get();
+
+    nadditions = 0;
+    for ( int iflash=0; iflash<flashes.size(); iflash++ ) {
+      if ( !flashes.get( iflash ).claimed ) {
+	unclaimed_flashes.add( std::move( flashes.get( iflash ) ) );
+	nadditions ++;
+      }
+    }
+    std::cout << " added " << nadditions << " unclaimed 1st pass flashes to the subevents." << std::endl;
     
   }
 

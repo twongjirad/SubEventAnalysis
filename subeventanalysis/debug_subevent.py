@@ -13,6 +13,13 @@ if vis:
     except:
         PYQTGRAPH = False
 
+colorlist = [ ( 255, 0, 0, 255 ),
+              ( 125, 125, 250, 255 ),
+              ( 0, 0, 255, 255 ),
+              ( 125, 125, 0, 255 ),
+              ( 125, 0, 125, 255 ),
+              ( 0, 125, 125, 255 ) ]
+
 def prepWaveforms( opdata ):
     RC = 50000.0 # ns
     nsamples = opdata.getNBeamWinSamples()
@@ -143,24 +150,41 @@ from pysubevent.pysubevent.cysubeventdisc import pyWaveformData, pySubEventIO, p
 
 def test_runSubEventFinder( opdata, seconfig, filename, opdisplay=None ):
 
-    wfms,qs = prepWaveforms( opdata )   # extract numpy arrays
-    pywfms = pyWaveformData( wfms )  # package
-    for i in range(0,wfms.shape[1]):
-        print "ch ",i,": max=",np.max(wfms[:,i])
-
     subeventio = pySubEventIO( filename, 'w' )
     
     from pysubevent.pysubevent.cysubeventdisc import formSubEventsCPP
     import pysubevent.utils.pmtcalib as spe
     pmtspe = spe.getCalib( "../config/pmtcalib_20150930.json" )
-    subevents = formSubEventsCPP( pywfms, seconfig, pmtspe )
-    for subevent in subevents.getlist():
-        print subevents, "t=",subevent.tstart_sample, " nflashes=",len(subevent.getFlashList())
-    subeventio.transferSubEventList( subevents )
-    subeventio.fill()
-    subeventio.write()
-    if opdisplay is not None:
-        opdisplay.gotoEvent( opdata.current_event )
+
+    ok = True
+
+    while ok:
+
+        wfms,qs = prepWaveforms( opdata )   # extract numpy arrays
+        pywfms = pyWaveformData( wfms )  # package
+        for i in range(0,wfms.shape[1]):
+            print "ch ",i,": max=",np.max(wfms[:,i])
+
+        subevents, unclaimed_flashes = formSubEventsCPP( pywfms, seconfig, pmtspe )
+        for subevent in subevents.getlist():
+            print subevents, "t=",subevent.tstart_sample, " nflashes=",len(subevent.getFlashList())
+        subeventio.transferSubEventList( subevents )
+        subeventio.fill()
+        subeventio.write()
+
+        if opdisplay is not None:
+            opdisplay.clearUserWaveformItem()
+            opdisplay.gotoEvent( opdata.current_event )
+            for isubevent,subevent in enumerate( subevents.getlist() ):
+                for flash in subevent.getFlashList():
+                    plot_flash = makeFlashPlotItem( flash, seconfig, color=colorlist[ isubevent%6 ] )
+                    opdisplay.addUserWaveformItem( plot_flash, ch=flash.ch )
+            for flash in unclaimed_flashes.getFlashes():
+                plot_flash = makeFlashPlotItem( flash, seconfig, color=(0,255,0,255) )
+                opdisplay.addUserWaveformItem( plot_flash, ch=flash.ch )
+
+        raw_input()
+        ok = opdata.getNextEvent()
     
 
 if __name__ == "__main__":
@@ -173,10 +197,11 @@ if __name__ == "__main__":
     
     # Load data
     from pylard.pylardata.rawdigitsopdata import RawDigitsOpData
-    fname = "../../data/pmtratedata/run2668_filterreconnect_rerun.root"
+    #fname = "../../data/pmtratedata/run2668_filterreconnect_rerun.root"
+    fname = "../../data/pmtratedata/run2597_filterreconnect.root"
     opdata = RawDigitsOpData( fname )
     #ok = opdata.getNextEvent()
-    ok = opdata.getEvent(8)
+    ok = opdata.getEvent(5)
     if vis:
         app = QtGui.QApplication([])
         opdisplay = OpDetDisplay( opdata )
@@ -188,8 +213,8 @@ if __name__ == "__main__":
     if ok:
         #test_findonesubevent( 0, opdata, config, opdisplay=opdisplay )
         #test_getChannelFlashes( 0, opdata, config, opdisplay=opdisplay )
-        #test_runSubEventFinder( opdata, config, "output_debug.root", opdisplay=opdisplay )
-        test_secondPassFlashes( opdata, config, opdisplay )
+        test_runSubEventFinder( opdata, config, "output_debug.root", opdisplay=opdisplay )
+        #test_secondPassFlashes( opdata, config, opdisplay )
 
 
     if vis and ( (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION')):
