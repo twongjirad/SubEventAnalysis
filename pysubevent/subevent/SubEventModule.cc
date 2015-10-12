@@ -278,7 +278,38 @@ namespace subevent {
     }//end of while loop
     
     std::cout << " end of formsubevents. found " << subevents.size() << std::endl;
+
+    // now add in second pass flashes
+    int nadditions = 0;
+    if ( subevents.size() > 0 ) {
+      flashes_pass2.sortByTime();
+      for( FlashListIter iflash2=flashes_pass2.begin(); iflash2!=flashes_pass2.end(); iflash2++ ) {
+	if ( (*iflash2).claimed )
+	  continue;
+	double mintstart_diff = 1.0e6;
+	int best_subevent = -1;
+	for ( int isubevent=0; isubevent<subevents.size(); isubevent++ ) {
+	  double tdiff = fabs( subevents.get(isubevent).tstart_sample-(*iflash2).tstart );
+	  if ( (*iflash2).tstart >= subevents.get(isubevent).tstart_sample-config.flashgate && (*iflash2).tend <= (subevents.get(isubevent).tend_sample)+config.flashgate ) {
+	    if ( tdiff < mintstart_diff ) {
+	      best_subevent = isubevent;
+	      mintstart_diff = tdiff;
+	    }
+	  }
+	}
+	
+	// add to subevent if a match found
+	if ( best_subevent>=0 ) {
+	  (*iflash2).claimed = true;
+	  subevents.get(best_subevent).flashes.add( std::move(*iflash2) );
+	  //std::cout << " adding second pass flash to subevent #" << best_subevent << std::endl;
+	  nadditions += 1;
+	}
+      }
+    }
+    std::cout << " added " << nadditions << " 2nd pass flashes to the subevents." << std::endl;
     //std::cin.get();
+    
   }
 
 }
