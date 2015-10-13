@@ -14,6 +14,7 @@ namespace subevent {
   public:
 
     SubEventIO( std::string filename, std::string mode );
+    SubEventIO( TTree* tree, std::string mode );
     ~SubEventIO();
 
     std::string mode; // r or w

@@ -12,6 +12,19 @@ namespace subevent {
 
     if ( mode=='w' ) {
       fFile = new TFile( filename.c_str(), "RECREATE" );
+      fTree = NULL;
+      defineTree();
+    }
+  }
+
+  SubEventIO::SubEventIO( TTree* tree, std::string mode_ )
+    : fTree(tree), mode(mode_) {
+    
+    eventid = -1;
+    chmaxamp = 0.;
+    nsubevents = 0;
+
+    if ( mode=='w' ) {
       defineTree();
     }
   }
@@ -20,7 +33,8 @@ namespace subevent {
   }
 
   void SubEventIO::defineTree() {
-    fTree = new TTree("subevents", "SubEvent Tree");
+    if ( fTree==NULL )
+      fTree = new TTree("subevents", "SubEvent Tree");
     //b_subeventlist = new TBranch( "subeventlist", subevents );
     fTree->Branch( "event", &eventid );
     fTree->Branch( "chmaxamp", &chmaxamp );
