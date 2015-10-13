@@ -5,15 +5,16 @@ from pysubevent.utils.pedestal import getpedestal
 def prepWaveforms( opdata ):
     RC = 50000.0 # ns
     nsamples = opdata.getNBeamWinSamples()
+    nsamples -= 20
     wfms = np.ones( (nsamples,32) )*2047.0
     qs   = np.zeros( (nsamples,32) )
     for ch in range(0,32):
         scale = 1.0
         if np.max( opdata.getData()[:,ch] )<4090:
-            wfms[:,ch] = opdata.getData(slot=5)[:,ch]
+            wfms[:,ch] = opdata.getData(slot=5)[:nsamples,ch]
         else:
             print "swap HG ch",ch," with LG wfm"
-            lgwfm = opdata.getData(slot=6)[:,ch]
+            lgwfm = opdata.getData(slot=6)[:nsamples,ch]
             lgped = getpedestal( lgwfm, 20, 2.0 )
             if lgped is None:
                 print "ch ",ch," LG has bad ped"
@@ -37,7 +38,7 @@ def prepWaveforms( opdata ):
             q = 50.0*(wfms[i,ch]/RC) + qs[i-1,ch]*np.exp(-1.0*15.625/RC) # 10 is fudge factor!
             qs[i,ch] = q
             wfms[i,ch] += q
-        opdata.getData(slot=5)[:,ch] = wfms[:,ch]
+        opdata.getData(slot=5)[:nsamples,ch] = wfms[:,ch]
         opdata.getPedestal(slot=5)[ch] = 0.0
             
     return wfms
@@ -66,7 +67,7 @@ def runSubEventFinder( config, input, outfilename ):
         wfms = prepWaveforms( opdata )   # extract numpy arrays
         pywfms = pyWaveformData( wfms )  # packages
         
-        subevents = formSubEventsCPP( pywfms, config, pmtspe )
+        subevents, unclaimedflashes = formSubEventsCPP( pywfms, config, pmtspe )
         nsubevents = subevents.size
 
         subeventio.clearlist()
@@ -76,9 +77,9 @@ def runSubEventFinder( config, input, outfilename ):
         subeventio.transferSubEventList( subevents )
         subeventio.fill()
         nevents += 1
-        if nsubevents>0:
-            raw_input()
-        #if nevents>=50:
+        #if nsubevents>0:
+        #    raw_input()
+        #if nevents>=200:
         #    break
         if opdata.current_event>=1405:
             break
