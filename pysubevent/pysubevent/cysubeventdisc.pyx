@@ -202,8 +202,9 @@ cdef class pySubEventList:
 
 cdef class pyWaveformData:
     cdef WaveformData* thisptr
-    def __cinit__(self, np.ndarray[np.float_t,ndim=2] wfms ):
+    def __cinit__(self):
         self.thisptr = new WaveformData()
+    def storeWaveforms( self, np.ndarray[np.float_t,ndim=2] wfms ):
         for ch in range(0,wfms.shape[1]):
             self.thisptr.set( ch, wfms[:,ch], False )
     def __dealloc__(self):
@@ -577,8 +578,8 @@ cpdef formFlashesCPP( pyWaveformData pywfms, pySubEventModConfig pyconfig, str d
    pyflashes = pyFlashList()
    pyflashes.thisptr = flashes
    
-   blanks = np.zeros( (len(pywfms.get(0)), 32 ), dtype=np.float  )
-   pywfmdata = pyWaveformData( blanks )
+   pywfmdata = pyWaveformData()
+   del pywfmdata.thisptr
    pywfmdata.thisptr = postwfms
    
    return pyflashes, pywfmdata
@@ -604,3 +605,7 @@ cpdef formSubEventsCPP( pyWaveformData pywfms, pySubEventModConfig pyconfig, pmt
         print subevents, "t=",subevent.tstart_sample,"-",subevent.tend_sample," (",subevent.tstart_sample*pyconfig.nspersample,"-",subevent.tend_sample*pyconfig.nspersample," ns) nflashes=",len(subevent.getFlashList())
 
     return subevents, pyflashlist
+
+# ------------------------------------------------------------------------------------------
+# formSubEvents
+# ------------------------------------------------------------------------------------------

@@ -61,6 +61,7 @@ cdef extern from "WaveformData.hh" namespace "subevent":
         void set( int channel, vector[double]& wfm, bint islowgain )
         void setLowGain( int channel, bint islowgain )
         bint isLowGain( int channel )
+        void storeTimeInfo( int ch, unsigned int frame, double timestamp )
 
 
 cdef extern from "SubEventIO.hh" namespace "subevent":
