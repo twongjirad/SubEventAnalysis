@@ -161,7 +161,6 @@ cdef class pySubEvent:
         def __set__(self,bint x): self.__isowner = x
 
             
-
 cdef makePySubEventFromObject( SubEvent* subevent ):
     obj = pySubEvent()
     obj.thisptr = subevent
@@ -317,9 +316,10 @@ cdef extern from "scintresponse.hh" namespace "subevent":
                                    float fastfrac, float slowfrac, float noslowthreshold )
                                    
 
-cpdef pyCalcScintResponse( int tstart, int tend, int maxt, float sig, float maxamp, float fastconst, float slowconst, float nspertick ):
+cpdef pyCalcScintResponse( int tstart, int tend, int maxt, float sig, float maxamp, float fastconst, float slowconst, 
+                           float nspertick, float fastfrac, float slowfrac, float noslowthreshold ):
     cdef vector[double] amp
-    calcScintResponseCPP( amp, tstart, tend, maxt, sig, maxamp, fastconst, slowconst, nspertick, 0.8, 0.3, 30.0 )
+    calcScintResponseCPP( amp, tstart, tend, maxt, sig, maxamp, fastconst, slowconst, nspertick, fastfrac, slowfrac, noslowthreshold )
     tdc = range(tstart,tend)
     return zip(tdc,amp)
 
@@ -434,7 +434,8 @@ cpdef findOneSubEvent( np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, cfdconf, confi
         #expectation = cyse.calcScintResponse( np.maximum(0,tmax-20), len(waveform), tmax, spe_sigma, (maxamp-cfdconf.pedestal), config.fastconst, config.slowconst, cfdconf.nspersample )
 
         # native c++
-        expectation = cyse.pyCalcScintResponse( np.maximum(0,tmax-20), len(waveform), tmax, spe_sigma, (maxamp-cfdconf.pedestal), config.fastconst, config.slowconst, cfdconf.nspersample, 0.8, 0.3, 30.0 )
+        expectation = cyse.pyCalcScintResponse( np.maximum(0,tmax-20), len(waveform), tmax, spe_sigma, maxamp,
+                                                config.fastconst, config.slowconst, cfdconf.nspersample, 0.8, 0.3, 30.0 )
         
         tend = tstart + len(expectation)
 
@@ -607,5 +608,67 @@ cpdef formSubEventsCPP( pyWaveformData pywfms, pySubEventModConfig pyconfig, pmt
     return subevents, pyflashlist
 
 # ------------------------------------------------------------------------------------------
-# formSubEvents
+# formCosmicWindowSubEvents
 # ------------------------------------------------------------------------------------------
+
+cdef class CosmicWindowHolder:
+   cdef list index
+   cdef dict map
+   def __cinit__( self ):
+       pass
+   def addWindow( self, ch, t, wfm ):
+       self.map[ (t,ch) ] = wfm
+       self.index.append( (t,ch) )
+   def sort( self ):
+       self.index.sort()
+   
+cpdef makeFlashFromWaveform( int ch, int t, np.ndarray[np.float_t,ndim=1] wfm, pySubEventModConfig pyconfig ):
+    pflash = pyFlash()
+    pflash.thisptr = new Flash()
+    pflash.thisptr.ch = ch
+    pflash.thisptr.tstart = t
+    pflash.thisptr.tend = t+len(wfm)
+    pflash.thisptr.maxamp = np.max( wfm )
+    pflash.thisptr.tmax   = np.argmax( wfm )
+    pflash.thisptr.area = np.sum( wfm )
+
+    tstart = 0
+    tend = pflash.thisptr.tend-pflash.thisptr.tstart
+    maxt = pflash.thisptr.tmax-pflash.thisptr.tstart
+    
+    
+    response = pyCalcScintResponse( tstart, tend, maxt, pyconfig.thisptr.spe_sigma, pflash.thisptr.maxamp,
+                                    pyconfig.thisptr.fastconst_ns, pyconfig.thisptr.slowconst_ns, pyconfig.thisptr.nspersample,
+                                    pyconfig.thisptr.fastfraction, pyconfig.thisptr.slowfraction, pyconfig.thisptr.noslowthreshold )
+    pflash.thisptr.expectation = response[1]
+    pflash.thisptr.waveform = wfm
+    return wfm
+    
+
+cpdef formCosmicWindowSubEvents( CosmicWindowHolder cosmicwindows, pySubEventModConfig pyconfig ):
+   subevents = []
+   cosmicwindows.sort()
+   # time ordered
+   while len( cosmicwindows.index )>0:
+       # pop of one of the indices
+       first = cosmicwindows.index.pop(0)
+       # now match as many as one can
+       matches = []
+       for  (t,ch) in cosmicwindows.index:
+           # if time matches
+           if abs( t-first[0] )<pyconfig.flashgate:
+               matches.append( (t,ch) )
+           if t-first[0]>pyconfig.flashgate:
+               break # should be ok since we are suppose to be time ordered
+       # remove any we matches we found, should be at the front of the list, so not expensive
+       for x in matches:
+           cosmicwindows.index.remove( x )
+       matches.append( first )
+       # ok make flashes from each channel
+       flashes = []
+       for (t,ch) in matches:
+           aflash = makeFlashFromWaveform( ch, t, cosmicwindows.map[ (t,ch) ], pyconfig )
+           flashes.append( aflash )
+           
+       # subevent
+   return subevents
