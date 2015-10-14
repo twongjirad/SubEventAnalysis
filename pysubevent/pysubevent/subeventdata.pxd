@@ -38,6 +38,7 @@ cdef extern from "SubEvent.hh" namespace "subevent":
         double totpe
         double maxamp
         FlashList flashes
+        FlashList flashes_pass2
 
 cdef extern from "SubEventList.hh" namespace "subevent":
     cdef cppclass SubEventList:

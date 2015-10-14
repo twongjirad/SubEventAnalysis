@@ -140,6 +140,14 @@ cdef class pySubEvent:
             aflash.isowner = False
             flashlist.append( aflash )
         return flashlist
+    def getFlash2List( self ):
+        flashlist = []
+        for iflash in range(0,self.thisptr.flashes_pass2.size()):
+            apyflash = pyFlash()
+            apyflash.thisptr = &(self.thisptr.flashes_pass2.get(iflash))
+            apyflash.isowner = False
+            flashlist.append( apyflash )
+        return flashlist
     property tstart_sample:
         def __get__(self): return self.thisptr.tstart_sample
     property tend_sample:
