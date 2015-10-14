@@ -260,9 +260,9 @@ namespace subevent {
 	      newsubevent.tend_sample = (int)(*iflash).tend;
 	    newsubevent.maxamp = pemax;
 	    //newsubevent.totpe += (*iflash).area/pmtspemap[ (*iflash).ch ];
-	    newsubevent.totpe += (*iflash).area; // HACK
-	    newsubevent.sumflash30 += ((*iflash).area30); // HACK
-	    newsubevent.sumfcomp_gausintegral += (*iflash).fcomp_gausintegral; // HACK
+	    newsubevent.totpe += (*iflash).area;
+	    newsubevent.sumflash30 += ((*iflash).area30); 
+	    newsubevent.sumfcomp_gausintegral += (*iflash).fcomp_gausintegral;
 	    (*iflash).claimed = true;
 	    Flash copyflash( (*iflash ) );
 	    newsubevent.flashes.add( std::move( copyflash ) ); 
