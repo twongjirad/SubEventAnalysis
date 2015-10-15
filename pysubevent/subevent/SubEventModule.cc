@@ -163,7 +163,7 @@ namespace subevent {
       int ch = *it;
       std::vector< double > postwfm;
       getChannelFlashes( ch, wfms.get( ch ), config, discrname, flashes, postwfm );
-      std::cout << "search for flashes in channel=" << ch << ". found=" << flashes.size() << std::endl;
+      //std::cout << "search for flashes in channel=" << ch << ". found=" << flashes.size() << std::endl;
       postwfms.set( ch, postwfm, wfms.isLowGain(ch) );
     }
   }
