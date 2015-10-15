@@ -18,6 +18,7 @@ cdef extern from "FlashList.hh" namespace "subevent":
     cdef cppclass FlashList:
         FlashList() except +
         int add( Flash&& flash )
+        void transferFlash( Flash& flash )
         Flash& get( int i )
         int size()
         void clear()
@@ -35,15 +36,19 @@ cdef extern from "SubEvent.hh" namespace "subevent":
         int tend_sample
         double tstart_ns
         double tend_ns
+        double pe30
         double totpe
+        double pe30_1
+        double totpe_1
         double maxamp
         FlashList flashes
         FlashList flashes_pass2
+        void transferFlashes( FlashList& flashes )
 
 cdef extern from "SubEventList.hh" namespace "subevent":
     cdef cppclass SubEventList:
         SubEventList() except +
-        int add( SubEvent&& flash )
+        int add( SubEvent&& subevent )
         SubEvent& get( int i )
         int size()
         void clear()
@@ -74,3 +79,10 @@ cdef extern from "SubEventIO.hh" namespace "subevent":
         void write()
         void fill()
         void clearlist()
+
+cdef extern from "CosmicWindowSubEvents.hh" namespace "subevent":
+    cdef cppclass CosmicWindowHolder:
+        CosmicWindowHolder() except +
+        void addHG( int ch, int t_sample, vector[double] wfm )
+        void addLG( int ch, int t_sample, vector[double] wfm )
+        
