@@ -46,10 +46,11 @@ namespace subevent {
 	}
 	// if saturated, we use the low gain waveform!
 	if ( maxamp>2000.0 ) {
-	  std::cout << "use low gain for ch=" << (*itb).channel << ", t=" << (*itb).sample << " maxamp=" << maxamp << std::endl;
+	  //std::cout << "use low gain for ch=" << (*itb).channel << ", t=" << (*itb).sample << " maxamp=" << maxamp << std::endl;
 	  CosmicWinIndex lgindex = cosmicwindows.getLGindexFromHG((*itb));
-	  std::cout << "  lowgain index=(" << lgindex.sample << ", " << lgindex.channel << ")" << std::endl;
+	  //std::cout << "  lowgain index=(" << lgindex.sample << ", " << lgindex.channel << ")" << std::endl;
 	  wfm = cosmicwindows.lowGainWfmMap[ lgindex ];
+	  winlen = (int)wfm.size();
 	  maxamp = 0.;
 	  for ( int iadc=0; iadc<winlen; iadc++ ) {
 	    if ( wfm.at(iadc)>maxamp ) {
@@ -59,11 +60,11 @@ namespace subevent {
 	  }
 	}
 	
-	std::cout << "matches id=" << matchid << ": (" << (*itb).sample << ", " << (*itb).channel << ")  maxamp=" << maxamp << std::endl;
+	//std::cout << "matches id=" << matchid << ": (" << (*itb).sample << ", " << (*itb).channel << ")  maxamp=" << maxamp << std::endl;
 	if ( maxamp < 0.0 ) {
 	  // weird, skip
 	  (*itb).claimed = true;
-	  std::cout << "  undershoot waveform. skipping" << std::endl;
+	  //std::cout << "  undershoot waveform. skipping" << std::endl;
 	  continue;
 	}
 	// calculate expectation
@@ -81,6 +82,7 @@ namespace subevent {
       subevents.add( std::move( asubevent ) );
       matchid++;
     }
+    std::cout << "Formed " << subevents.size() << " cosmic discriminator subevents" << std::endl;
   }
   
 }

@@ -1,48 +1,7 @@
 import os,sys
 import numpy as np
 from pysubevent.utils.pedestal import getpedestal
-
-def prepWaveforms( opdata ):
-    RC = 50000.0 # ns
-    nsamples = opdata.getNBeamWinSamples()
-    nsamples -= 20
-    wfms = np.ones( (nsamples,32) )*2047.0
-    qs   = np.zeros( (nsamples,32) )
-    for ch in range(0,32):
-        scale = 1.0
-        if np.max( opdata.getData()[:,ch] )<4090:
-            wfms[:,ch] = opdata.getData(slot=5)[:nsamples,ch]
-        else:
-            print "swap HG ch",ch," with LG wfm"
-            lgwfm = opdata.getData(slot=6)[:nsamples,ch]
-            lgped = getpedestal( lgwfm, 20, 2.0 )
-            if lgped is None:
-                print "ch ",ch," LG has bad ped"
-                lgped = opdata.getData(slot=6)[0,ch]
-            wfms[:,ch] = lgwfm-lgped
-            print "lg ped=",lgped," wfm[0-10]=",np.mean( wfms[0:10,ch] )
-            wfms[:,ch] *= 10.0
-            scale = 10.0
-            #opdata.getData(slot=5)[:,ch] = wfms[:,ch] + lgped
-            #opdata.getPedestal(slot=5)[ch] = lgped # since we removed the pedestal already
-        ped = getpedestal( wfms[:,ch], 20, 2.0*scale )
-        if ped is not None:
-            print "ch ",ch," ped=",ped
-            wfms[:,ch] -= ped
-        else:
-            print "ch ",ch," has bad ped"
-            wfms[:,ch] -= 0.0
-        # calc undershoot
-        for i in range(1,len(qs[:,ch])):
-            #for j in range(i+1,np.minimum(i+1+200,len(qs[:,ch])) ):
-            q = 50.0*(wfms[i,ch]/RC) + qs[i-1,ch]*np.exp(-1.0*15.625/RC) # 10 is fudge factor!
-            qs[i,ch] = q
-            wfms[i,ch] += q
-        opdata.getData(slot=5)[:nsamples,ch] = wfms[:,ch]
-        opdata.getPedestal(slot=5)[ch] = 0.0
-            
-    return wfms
-
+from prepWaveforms import prepWaveforms, prepCosmicSubEvents
 
 def runSubEventFinder( config, input, outfilename ):
     print "Opening ... ", input
@@ -64,9 +23,14 @@ def runSubEventFinder( config, input, outfilename ):
 
     nevents = 0
     while ok:
-        wfms = prepWaveforms( opdata )   # extract numpy arrays
-        pywfms = pyWaveformData( wfms )  # packages
+
+        # first we get cosmic discriminator windows and make them into subevents
+        cosmic_subevents,boundarysubevent = prepCosmicSubEvents( opdata, config )
+        wfms,qs = prepWaveforms( opdata, boundarysubevent )   # extract numpy arrays, undershoot correct, pedestal correct
+        pywfms = pyWaveformData()  # packages
+        pywfms.storeWaveforms( wfms )
         
+        # beam window subevents
         subevents, unclaimedflashes = formSubEventsCPP( pywfms, config, pmtspe )
         nsubevents = subevents.size
 
@@ -75,10 +39,11 @@ def runSubEventFinder( config, input, outfilename ):
         subeventio.chmaxamp = np.max( wfms )
         print "chmaxamp: ",subeventio.chmaxamp
         subeventio.transferSubEventList( subevents )
+        subeventio.transferSubEventList( cosmic_subevents )
         subeventio.fill()
         nevents += 1
         #if nsubevents>0:
-        #    raw_input()
+        #raw_input()
         #if nevents>=200:
         #    break
         if opdata.current_event>=1405:
