@@ -52,7 +52,7 @@ def prepWaveforms( opdata, boundarysubevent=None ):
             qcorr = boundary_corrections[ch][1]
             t1 = -tstart
             tlen = np.minimum( len(qcorr)-t1, len(wfms[:,ch]) )
-            wfms[:,ch] += qcorr[t1:t1+tlen]
+            wfms[:tlen,ch] += qcorr[t1:t1+tlen]
             ped = getpedestal( wfms[boundarysubevent.tend_sample:,ch], 10, 1.0 )
             # supress early subevent..
             opdata.suppressed_wfm[ch] = np.copy( wfms[:boundarysubevent.tend_sample-1,ch] )
