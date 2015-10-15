@@ -111,6 +111,9 @@ cdef class pyFlashList:
             aflash = self.getFlash( iflash )
             flashes.append( aflash )
         return flashes
+    def addFlash( self, pyFlash flash ):
+        flash.__isowner = False
+        self.thisptr.transferFlash( deref( flash.thisptr ) )
     property size:
         def __get__(self): return self.thisptr.size()
 
@@ -148,10 +151,14 @@ cdef class pySubEvent:
             apyflash.isowner = False
             flashlist.append( apyflash )
         return flashlist
+    def addFlashes( self, pyFlashList flashes ):
+        self.thisptr.transferFlashes( deref( flashes.thisptr ) )
     property tstart_sample:
         def __get__(self): return self.thisptr.tstart_sample
+        def __set__(self,x): self.thisptr.tstart_sample = x
     property tend_sample:
         def __get__(self): return self.thisptr.tend_sample
+        def __set__(self,x): self.thisptr.tend_sample = x
     property totpe:
         def __get__(self): return self.thisptr.totpe
     property maxamp:
@@ -161,7 +168,6 @@ cdef class pySubEvent:
         def __set__(self,bint x): self.__isowner = x
 
             
-
 cdef makePySubEventFromObject( SubEvent* subevent ):
     obj = pySubEvent()
     obj.thisptr = subevent
@@ -202,14 +208,27 @@ cdef class pySubEventList:
 
 cdef class pyWaveformData:
     cdef WaveformData* thisptr
-    def __cinit__(self, np.ndarray[np.float_t,ndim=2] wfms ):
+    def __cinit__(self):
         self.thisptr = new WaveformData()
+    def storeWaveforms( self, np.ndarray[np.float_t,ndim=2] wfms ):
         for ch in range(0,wfms.shape[1]):
             self.thisptr.set( ch, wfms[:,ch], False )
     def __dealloc__(self):
         del self.thisptr
     def get( self, int ch ):
         return np.asarray( self.thisptr.get( ch ) )
+
+from subeventdata cimport CosmicWindowHolder
+cdef class pyCosmicWindowHolder:
+    cdef CosmicWindowHolder* thisptr
+    cdef bint __isowner
+    def __cinit__(self):
+        self.thisptr = new CosmicWindowHolder()
+        self.__isowner = True # default, wrapper owns the cpp object
+    def addHGWaveform( self, int ch, int tsample, np.ndarray[np.float_t,ndim=1] wfm ):
+        self.thisptr.addHG( ch, tsample, wfm )
+    def addLGWaveform( self, int ch, int tsample, np.ndarray[np.float_t,ndim=1] wfm ):
+        self.thisptr.addLG( ch, tsample, wfm )
 
 # SubEventIO
 # -----------
@@ -297,6 +316,8 @@ cdef class pySubEventModConfig:
       def __get__(self): return self.thisptr.npresamples
     property cfddelay:
       def __get__(self): return self.thisptr.cfdconfig.delay
+    property flashgate:
+      def __get__(self): return self.thisptr.flashgate
 
 
 # ====================================================================================================
@@ -316,9 +337,10 @@ cdef extern from "scintresponse.hh" namespace "subevent":
                                    float fastfrac, float slowfrac, float noslowthreshold )
                                    
 
-cpdef pyCalcScintResponse( int tstart, int tend, int maxt, float sig, float maxamp, float fastconst, float slowconst, float nspertick ):
+cpdef pyCalcScintResponse( int tstart, int tend, int maxt, float sig, float maxamp, float fastconst, float slowconst, 
+                           float nspertick, float fastfrac, float slowfrac, float noslowthreshold ):
     cdef vector[double] amp
-    calcScintResponseCPP( amp, tstart, tend, maxt, sig, maxamp, fastconst, slowconst, nspertick, 0.8, 0.3, 30.0 )
+    calcScintResponseCPP( amp, tstart, tend, maxt, sig, maxamp, fastconst, slowconst, nspertick, fastfrac, slowfrac, noslowthreshold )
     tdc = range(tstart,tend)
     return zip(tdc,amp)
 
@@ -433,7 +455,8 @@ cpdef findOneSubEvent( np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, cfdconf, confi
         #expectation = cyse.calcScintResponse( np.maximum(0,tmax-20), len(waveform), tmax, spe_sigma, (maxamp-cfdconf.pedestal), config.fastconst, config.slowconst, cfdconf.nspersample )
 
         # native c++
-        expectation = cyse.pyCalcScintResponse( np.maximum(0,tmax-20), len(waveform), tmax, spe_sigma, (maxamp-cfdconf.pedestal), config.fastconst, config.slowconst, cfdconf.nspersample, 0.8, 0.3, 30.0 )
+        expectation = cyse.pyCalcScintResponse( np.maximum(0,tmax-20), len(waveform), tmax, spe_sigma, maxamp,
+                                                config.fastconst, config.slowconst, cfdconf.nspersample, 0.8, 0.3, 30.0 )
         
         tend = tstart + len(expectation)
 
@@ -577,8 +600,8 @@ cpdef formFlashesCPP( pyWaveformData pywfms, pySubEventModConfig pyconfig, str d
    pyflashes = pyFlashList()
    pyflashes.thisptr = flashes
    
-   blanks = np.zeros( (len(pywfms.get(0)), 32 ), dtype=np.float  )
-   pywfmdata = pyWaveformData( blanks )
+   pywfmdata = pyWaveformData()
+   del pywfmdata.thisptr
    pywfmdata.thisptr = postwfms
    
    return pyflashes, pywfmdata
@@ -604,3 +627,50 @@ cpdef formSubEventsCPP( pyWaveformData pywfms, pySubEventModConfig pyconfig, pmt
         print subevents, "t=",subevent.tstart_sample,"-",subevent.tend_sample," (",subevent.tstart_sample*pyconfig.nspersample,"-",subevent.tend_sample*pyconfig.nspersample," ns) nflashes=",len(subevent.getFlashList())
 
     return subevents, pyflashlist
+
+# ------------------------------------------------------------------------------------------
+# formCosmicWindowSubEvents
+# ------------------------------------------------------------------------------------------
+
+# cdef class CosmicWindowHolder:
+#    cdef list index
+#    cdef dict map
+#    def __cinit__( self ):
+#        self.index = []
+#        self.map = {}
+#    def addWindow( self, ch, t, wfm ):
+#        self.map[ (t,ch) ] = wfm
+#        self.index.append( (t,ch) )
+#    def sort( self ):
+#        self.index.sort()
+   
+# cpdef makeFlashFromWaveform( int ch, int t, np.ndarray[np.float_t,ndim=1] wfm, pySubEventModConfig pyconfig ):
+#     pflash = pyFlash()
+#     pflash.thisptr = new Flash()
+#     pflash.thisptr.ch = ch
+#     pflash.thisptr.tstart = t
+#     pflash.thisptr.tend = t+len(wfm)
+#     pflash.thisptr.maxamp = np.max( wfm )
+#     pflash.thisptr.tmax   = np.argmax( wfm )
+#     pflash.thisptr.area = np.sum( wfm )
+
+#     tstart = 0
+#     tend = pflash.thisptr.tend-pflash.thisptr.tstart
+#     maxt = pflash.thisptr.tmax-pflash.thisptr.tstart
+    
+    
+#     response = pyCalcScintResponse( tstart, tend, maxt, pyconfig.thisptr.spe_sigma, pflash.thisptr.maxamp,
+#                                     pyconfig.thisptr.fastconst_ns, pyconfig.thisptr.slowconst_ns, pyconfig.thisptr.nspersample,
+#                                     pyconfig.thisptr.fastfraction, pyconfig.thisptr.slowfraction, pyconfig.thisptr.noslowthreshold )
+#     pflash.thisptr.expectation = np.asarray( zip( *response )[1], dtype=np.float )
+#     pflash.thisptr.waveform = wfm
+#     return pflash
+
+cdef extern from "CosmicWindowSubEvents.hh" namespace "subevent":
+   cdef void formCosmicWindowSubEvents( CosmicWindowHolder& cosmics, SubEventModConfig& config, SubEventList& subevents )    
+
+cpdef formCosmicWindowSubEventsCPP( pyCosmicWindowHolder cosmicwindows, pySubEventModConfig pyconfig ):
+    cdef pySubEventList pysubevents = pySubEventList()
+    pysubevents.thisptr = new SubEventList()
+    formCosmicWindowSubEvents( deref( cosmicwindows.thisptr ), deref( pyconfig.thisptr ), deref( pysubevents.thisptr ) )
+    return pysubevents

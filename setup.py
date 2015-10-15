@@ -51,7 +51,7 @@ ext_subeventdata = Extension( "pysubevent/subevent/libsubeventdata",
                               language="c++")
 ext_subeventdisc = Extension( "pysubevent/subevent/libsubeventdisc",
                               ["pysubevent/subevent/SubEventModule.cc","pysubevent/subevent/SubEventModConfig.cc",
-                               "pysubevent/subevent/scintresponse.cc"],
+                               "pysubevent/subevent/scintresponse.cc","pysubevent/subevent/CosmicWindowSubEvents.cc"],
                               include_dirs=["pysubevent/cfdiscriminator",rootincdir],
                               library_dirs=["pysubevent/cfdiscriminator",builddir+"/pysubevent/cfdiscriminator",rootlibdir],
                               libraries=["cfdiscriminator"]+rootlibs,

@@ -1,6 +1,7 @@
 import os,sys
 import numpy as np
 from pysubevent.utils.pedestal import getpedestal
+from prepWaveforms import prepWaveforms, prepCosmicSubEvents
 
 vis = True
 
@@ -20,46 +21,6 @@ colorlist = [ ( 255, 0, 0, 255 ),
               ( 125, 0, 125, 255 ),
               ( 0, 125, 125, 255 ) ]
 
-def prepWaveforms( opdata ):
-    RC = 50000.0 # ns
-    nsamples = opdata.getNBeamWinSamples()
-    wfms = np.ones( (nsamples,32) )*2047.0
-    qs   = np.zeros( (nsamples,32) )
-    for ch in range(0,32):
-        scale = 1.0
-        if np.max( opdata.getData()[:,ch] )<4090:
-            wfms[:,ch] = opdata.getData(slot=5)[:,ch]
-        else:
-            print "swap HG ch",ch," with LG wfm"
-            lgwfm = opdata.getData(slot=6)[:,ch]
-            lgped = getpedestal( lgwfm, 20, 2.0 )
-            if lgped is None:
-                print "ch ",ch," LG has bad ped"
-                lgped = opdata.getData(slot=6)[0,ch]
-            wfms[:,ch] = lgwfm-lgped
-            print "lg ped=",lgped," wfm[0-10]=",np.mean( wfms[0:10,ch] )
-            wfms[:,ch] *= 10.0
-            scale = 10.0
-            #opdata.getData(slot=5)[:,ch] = wfms[:,ch] + lgped
-            #opdata.getPedestal(slot=5)[ch] = lgped # since we removed the pedestal already
-        ped = getpedestal( wfms[:,ch], 20, 2.0*scale )
-        if ped is not None:
-            print "ch ",ch," ped=",ped
-            wfms[:,ch] -= ped
-        else:
-            print "ch ",ch," has bad ped"
-            wfms[:,ch] -= 0.0
-        # calc undershoot
-        for i in range(1,len(qs[:,ch])):
-            #for j in range(i+1,np.minimum(i+1+200,len(qs[:,ch])) ):
-            q = 50.0*(wfms[i,ch]/RC) + qs[i-1,ch]*np.exp(-1.0*15.625/RC) # 10 is fudge factor!
-            qs[i,ch] = q
-            wfms[i,ch] += q
-        opdata.getData(slot=5)[:,ch] = wfms[:,ch]
-        opdata.getPedestal(slot=5)[ch] = 0.0
-            
-    return wfms,qs
-            
 
 def makeFlashPlotItem( flash, seconfig, color=(255,0,0,255) ):
     chsubevent = pg.PlotCurveItem()
@@ -125,8 +86,11 @@ def test_getChannelFlashes( ch, opdata, seconfig, opdisplay=None ):
 from pysubevent.pysubevent.cysubeventdisc import pyWaveformData, pyFlashList, formFlashesCPP
 
 def test_secondPassFlashes( opdata, seconfig, opdisplay=None ):
-    wfms,qs = prepWaveforms( opdata )   # extract numpy arrays
-    pywfms = pyWaveformData( wfms )  # package
+    # extract numpy arrays
+    wfms,qs = prepWaveforms( opdata )   
+    # package waveforms
+    pywfms = pyWaveformData()
+    pyqwfms.storeWaveforms( wfms )  
     
     # pass 1
     flashes1, postwfms = formFlashesCPP( pywfms, seconfig, "pass1" )
@@ -160,12 +124,18 @@ def test_runSubEventFinder( opdata, seconfig, filename, opdisplay=None ):
 
     while ok:
 
-        wfms,qs = prepWaveforms( opdata )   # extract numpy arrays
-        pywfms = pyWaveformData( wfms )  # package
+        cosmic_subevents, boundary_subevent = prepCosmicSubEvents( opdata, seconfig )
+        wfms,qs = prepWaveforms( opdata, boundary_subevent )   # extract numpy arrays
+        pywfms = pyWaveformData()
+        pywfms.storeWaveforms( wfms )  # package
         for i in range(0,wfms.shape[1]):
             print "ch ",i,": max=",np.max(wfms[:,i])
 
         subevents, unclaimed_flashes = formSubEventsCPP( pywfms, seconfig, pmtspe )
+        if boundary_subevent is None:
+            print "[NUMBER OF SUBEVENT: ",subevents.size,"]"
+        else:
+            print "[NUMBER OF SUBEVENT: ",subevents.size,"] + [BOUNDARY SUBEVENT]"
         for subevent in subevents.getlist():
             print subevents, "t=",subevent.tstart_sample, " nflashes=",len(subevent.getFlashList())
         subeventio.transferSubEventList( subevents )
@@ -175,17 +145,50 @@ def test_runSubEventFinder( opdata, seconfig, filename, opdisplay=None ):
         if opdisplay is not None:
             opdisplay.clearUserWaveformItem()
             opdisplay.gotoEvent( opdata.current_event )
-            for isubevent,subevent in enumerate( subevents.getlist() ):
+            subeventlist = subevents.getlist()
+            if boundary_subevent is not None:
+                subeventlist.append( boundary_subevent )
+            for isubevent,subevent in enumerate( subeventlist ):
                 for flash in subevent.getFlashList():
                     plot_flash = makeFlashPlotItem( flash, seconfig, color=colorlist[ isubevent%6 ] )
                     opdisplay.addUserWaveformItem( plot_flash, ch=flash.ch )
+                    if subevent in [boundary_subevent]:
+                        chsubevent = pg.PlotCurveItem()
+                        x = np.linspace( seconfig.nspersample*flash.tstart, seconfig.nspersample*len(flash.waveform), len(flash.waveform) )
+                        y = flash.waveform
+                        chsubevent.setData( x=x, y=y, pen=(255,255,255,255) )
+                        opdisplay.addUserWaveformItem( chsubevent, ch=flash.ch )
+                        chsuppressed = pg.PlotCurveItem()
+                        x = np.linspace( 0, len(opdata.suppressed_wfm[flash.ch])*seconfig.nspersample, len( opdata.suppressed_wfm[flash.ch]) )
+                        y = opdata.suppressed_wfm[flash.ch]
+                        chsuppressed.setData( x=x, y=y, pen=(255,255,255,255) )
+                        opdisplay.addUserWaveformItem( chsuppressed, ch=flash.ch )
+
+                #for flash in subevent.getFlash2List():
+                #    plot_flash = makeFlashPlotItem( flash, seconfig, color=colorlist[ isubevent%6 ] )
+                #    opdisplay.addUserWaveformItem( plot_flash, ch=flash.ch )                    
             for flash in unclaimed_flashes.getFlashes():
                 plot_flash = makeFlashPlotItem( flash, seconfig, color=(0,255,0,255) )
                 opdisplay.addUserWaveformItem( plot_flash, ch=flash.ch )
 
         raw_input()
         ok = opdata.getNextEvent()
+
+def test_cosmicsubeventfinder( opdata, config, opdisplay=None ):
+    # stuff data into interface class
+    cosmic_subevents, boundarysubevent = prepCosmicSubEvents( opdata )
+    wfms,qs = prepWaveforms( opdata, boundarysubevent )
     
+    if opdisplay is not None:
+        opdisplay.clearUserWaveformItem()
+        opdisplay.gotoEvent( opdata.current_event )
+        #for isubevent,subevent in enumerate( cosmic_subevents.getlist() ):
+        if boundarysubevent is not None:
+            for isubevent,subevent in enumerate([boundarysubevent]):
+                for flash in subevent.getFlashList():
+                    plot_flash = makeFlashPlotItem( flash, config, color=colorlist[ isubevent%6 ] )
+                    opdisplay.addUserWaveformItem( plot_flash, ch=flash.ch )
+        
 
 if __name__ == "__main__":
 
@@ -198,10 +201,11 @@ if __name__ == "__main__":
     # Load data
     from pylard.pylardata.rawdigitsopdata import RawDigitsOpData
     #fname = "../../data/pmtratedata/run2668_filterreconnect_rerun.root"
-    fname = "../../data/pmtratedata/run2597_filterreconnect.root"
+    #fname = "../../data/pmtratedata/run2597_filterreconnect.root"
+    fname = "../../data/pmtratedata/pmtrawdigits_recent_radon.root"
     opdata = RawDigitsOpData( fname )
-    #ok = opdata.getNextEvent()
-    ok = opdata.getEvent(5)
+    ok = opdata.getNextEvent()
+    #ok = opdata.getEvent(1)
     if vis:
         app = QtGui.QApplication([])
         opdisplay = OpDetDisplay( opdata )
@@ -215,6 +219,8 @@ if __name__ == "__main__":
         #test_getChannelFlashes( 0, opdata, config, opdisplay=opdisplay )
         test_runSubEventFinder( opdata, config, "output_debug.root", opdisplay=opdisplay )
         #test_secondPassFlashes( opdata, config, opdisplay )
+        #test_cosmicsubeventfinder( opdata, config, opdisplay=opdisplay )
+        
 
 
     if vis and ( (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION')):
