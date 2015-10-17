@@ -3,7 +3,8 @@ import numpy as np
 from pysubevent.utils.pedestal import getpedestal
 
 def prepWaveforms( opdata, boundarysubevent=None ):
-    RC = 60000.0 # ns
+    RC = 80000.0 # ns
+    fA = 5.0
     nsamples = opdata.getNBeamWinSamples()
     wfms = np.ones( (nsamples,32) )*2047.0
     qs   = np.zeros( (nsamples,32) )
@@ -18,7 +19,7 @@ def prepWaveforms( opdata, boundarysubevent=None ):
             wfm = flash.expectation
             qcorr = [0.0]
             for i in range(1,len(wfm)):
-                q = 3.0*wfm[i]*(15.625/RC) + qcorr[i-1]*np.exp( -1.0*15.625/RC )
+                q = fA*wfm[i]*(15.625/RC) + qcorr[i-1]*np.exp( -1.0*15.625/RC )
                 qcorr.append( q )
             # keep going until q runs out
             while qcorr[-1]>1.0:
@@ -27,6 +28,7 @@ def prepWaveforms( opdata, boundarysubevent=None ):
             #print "channel ",ch," has a boundary correction of length ",len(qcorr)," starting from time=",t
             boundary_corrections[ch] = ( t, np.asarray( qcorr, dtype=np.float ) )
 
+    # get waveforms, swap for low if needed, remove pedestal
     for ch in range(0,32):
         scale = 1.0
         if np.max( opdata.getData()[:,ch] )<4090:
@@ -47,17 +49,31 @@ def prepWaveforms( opdata, boundarysubevent=None ):
         # charge correction due to cosmic disc windows
         tlen = 1
         if ch in boundary_corrections.keys():
-            #print "apply boundary correction to waveform"
+            # charge correction
             tstart = boundary_corrections[ch][0]
             qcorr = boundary_corrections[ch][1]
             t1 = -tstart
             tlen = np.minimum( len(qcorr)-t1, len(wfms[:,ch]) )
+            #print "apply boundary correction to ch ",ch,": tstart=",tstart," covering=[0,",tlen,"]"
             wfms[:tlen,ch] += qcorr[t1:t1+tlen]
-            ped = getpedestal( wfms[boundarysubevent.tend_sample:,ch], 10, 1.0 )
             # supress early subevent..
-            opdata.suppressed_wfm[ch] = np.copy( wfms[:boundarysubevent.tend_sample-1,ch] )
-            wfms[:boundarysubevent.tend_sample-1,ch] = ped
+            if boundarysubevent.tend_sample>0 and boundarysubevent.tend_sample<len(wfms[:,ch]):
+                ped = getpedestal( wfms[boundarysubevent.tend_sample:,ch], 20, 0.5 )
+                tlen = np.minimum( boundarysubevent.tend_sample, len(wfms[:,ch]) )
+                if ped is None:
+                    ped = wfms[tlen,ch]
 
+                #print "suppress using boundary flash on channel ",ch
+                #flash = boundarysubevent.getFlash( ch )
+                #expectation = flash.expectation
+                opdata.suppressed_wfm[ch] = np.copy( wfms[:tlen-1,ch] )
+                wfms[:tlen-1,ch] = ped
+                #
+                #for i in range(0,tlen-1):
+                #    if -flash.tstart+i>=0 and -flash.tstart+i<len(expectation):
+                #        expect = expectation[ -flash.tstart +i ]
+                #        if wfms[i,ch] < expect + np.sqrt( expect )*3.0:
+                #            wfms[i,ch] = ped
 
         ped = getpedestal( wfms[:,ch], 20, 2.0*scale )
         if ped is not None:
@@ -67,12 +83,12 @@ def prepWaveforms( opdata, boundarysubevent=None ):
                 # subtract ped off of suppressed portion
                 opdata.suppressed_wfm[ch] -= ped
         else:
-            print "ch ",ch," has bad ped"
+            #print "ch ",ch," has bad ped"
             wfms[:,ch] -= 0.0
         # calc undershoot and correct
         for i in range(np.maximum(1,tlen),len(qs[:,ch])):
             #for j in range(i+1,np.minimum(i+1+200,len(qs[:,ch])) ):
-            q = wfms[i,ch]*(15.625/RC) + qs[i-1,ch]*np.exp(-1.0*15.625/RC) # 10 is fudge factor!
+            q = fA*wfms[i,ch]*(15.625/RC) + qs[i-1,ch]*np.exp(-1.0*15.625/RC) # 10 is fudge factor!
             qs[i,ch] = q
             wfms[i,ch] += q
         opdata.getData(slot=5)[:,ch] = wfms[:,ch]
@@ -96,13 +112,23 @@ def prepCosmicSubEvents( opdata, config ):
                 #print "lg waveform: ",ch,t
                 cosmics.addLGWaveform( ch, t, wfm)
             elif cwd.slot==5:
+                #print "hg waveform: ",ch,t
                 cosmics.addHGWaveform( ch, t, wfm )
         
     subevents = formCosmicWindowSubEventsCPP( cosmics, config )
+
     boundarysubevent = None
+    largest = 0
     for subevent in subevents.getlist():
         #print "subevent: ",subevent.tstart_sample, subevent.tend_sample
-        if ( subevent.tstart_sample<0 and subevent.tend_sample>0 ):
-            print "[BOUNDARY SUBEVENT FOUND] start=",subevent.tstart_sample," end=",subevent.tend_sample
-            boundarysubevent = subevent
+        #if ( subevent.tstart_sample<0 and subevent.tend_sample>0 ):
+        if subevent.tstart_sample<0 and subevent.tstart_sample*0.015625>=-40.0: # 20 us
+            totalamp = 0.0
+            for flash in subevent.getFlashList():
+                totalamp += flash.maxamp
+            print "boundary subevent candidate: start=",subevent.tstart_sample," end=",subevent.tend_sample," amp=",totalamp
+            if totalamp > largest:
+                boundarysubevent = subevent
+                largest = totalamp
+    print "[BOUNDARY SUBEVENT] start=",subevent.tstart_sample," end=",subevent.tend_sample, " amp=", subevent.maxamp
     return subevents,boundarysubevent

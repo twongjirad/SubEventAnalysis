@@ -135,6 +135,7 @@ cdef class pySubEvent:
             return
         apyflash = pyFlash()
         apyflash.thisptr = &(self.thisptr.flashes.get( i ))
+        apyflash.isowner = False
         return apyflash
     def getFlashList( self ):
         flashlist = []
@@ -217,6 +218,10 @@ cdef class pyWaveformData:
         del self.thisptr
     def get( self, int ch ):
         return np.asarray( self.thisptr.get( ch ) )
+    def calcBaselineInfo( self ):
+        self.thisptr.calcBaselineInfo()
+    def getbaseline( self, int ch ):
+        return np.asarray( self.thisptr.getbaseline( ch ) )
 
 from subeventdata cimport CosmicWindowHolder
 cdef class pyCosmicWindowHolder:
@@ -539,10 +544,10 @@ cpdef cyRunSubEventDiscChannel( np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, confi
 from subeventdata cimport FlashList
 
 cdef extern from "SubEventModule.hh" namespace "subevent":
-     cdef int getChannelFlashes( int channel, vector[double]& waveform, SubEventModConfig& config, string discrname, FlashList& flashes, vector[double]& postwfm )
+     cdef int getChannelFlashes( int channel, vector[double]& waveform, vector[double]& baseline, SubEventModConfig& config, string discrname, FlashList& flashes, vector[double]& postwfm )
 
 # python wrapper to native cpp
-cpdef getChannelFlashesCPP( int channel,  np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, pySubEventModConfig pyconfig, str discrname, ret_postwfm=False ):
+cpdef getChannelFlashesCPP( int channel,  np.ndarray[DTYPEFLOAT_t, ndim=1] waveform, np.ndarray[DTYPEFLOAT_t, ndim=1] baseline, pySubEventModConfig pyconfig, str discrname, ret_postwfm=False ):
     """
     returns flashes in the waveform
 
@@ -559,7 +564,7 @@ cpdef getChannelFlashesCPP( int channel,  np.ndarray[DTYPEFLOAT_t, ndim=1] wavef
     """
     cdef vector[double] postwfm
     cdef FlashList cpp_flashes
-    numflashes = getChannelFlashes( channel, waveform, deref(pyconfig.thisptr), discrname, cpp_flashes, postwfm )
+    numflashes = getChannelFlashes( channel, waveform, baseline, deref(pyconfig.thisptr), discrname, cpp_flashes, postwfm )
     print "ch=",channel," numflashes=",numflashes," max(waveform)=",np.max( waveform )
     cdef np.ndarray[DTYPEFLOAT_t, ndim=1] postarr = np.asarray( postwfm )
     if numflashes==0:

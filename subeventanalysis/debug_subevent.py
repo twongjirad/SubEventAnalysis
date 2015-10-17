@@ -125,11 +125,19 @@ def test_runSubEventFinder( opdata, seconfig, filename, opdisplay=None ):
     while ok:
 
         cosmic_subevents, boundary_subevent = prepCosmicSubEvents( opdata, seconfig )
+        #boundary_subevent = None
         wfms,qs = prepWaveforms( opdata, boundary_subevent )   # extract numpy arrays
         pywfms = pyWaveformData()
         pywfms.storeWaveforms( wfms )  # package
-        for i in range(0,wfms.shape[1]):
-            print "ch ",i,": max=",np.max(wfms[:,i])
+        pywfms.calcBaselineInfo()
+        #for i in range(0,wfms.shape[1]):
+        #    print "ch ",i,": max=",np.max(wfms[:,i])
+
+        baselines = np.zeros( wfms.shape, dtype=np.float )
+        variances = np.zeros( wfms.shape, dtype=np.float )
+        print "baslines: ",baselines.shape
+        for ch in range(0, wfms.shape[1] ):
+            baselines[:,ch] = pywfms.getbaseline( ch )
 
         subevents, unclaimed_flashes = formSubEventsCPP( pywfms, seconfig, pmtspe )
         if boundary_subevent is None:
@@ -154,15 +162,16 @@ def test_runSubEventFinder( opdata, seconfig, filename, opdisplay=None ):
                     opdisplay.addUserWaveformItem( plot_flash, ch=flash.ch )
                     if subevent in [boundary_subevent]:
                         chsubevent = pg.PlotCurveItem()
-                        x = np.linspace( seconfig.nspersample*flash.tstart, seconfig.nspersample*len(flash.waveform), len(flash.waveform) )
+                        x = np.linspace( seconfig.nspersample*flash.tstart, seconfig.nspersample*(flash.tstart+len(flash.waveform)), len(flash.waveform) )
                         y = flash.waveform
                         chsubevent.setData( x=x, y=y, pen=(255,255,255,255) )
                         opdisplay.addUserWaveformItem( chsubevent, ch=flash.ch )
-                        chsuppressed = pg.PlotCurveItem()
-                        x = np.linspace( 0, len(opdata.suppressed_wfm[flash.ch])*seconfig.nspersample, len( opdata.suppressed_wfm[flash.ch]) )
-                        y = opdata.suppressed_wfm[flash.ch]
-                        chsuppressed.setData( x=x, y=y, pen=(255,255,255,255) )
-                        opdisplay.addUserWaveformItem( chsuppressed, ch=flash.ch )
+                        if flash.ch in opdata.suppressed_wfm:
+                            chsuppressed = pg.PlotCurveItem()
+                            x = np.linspace( 0, len(opdata.suppressed_wfm[flash.ch])*seconfig.nspersample, len( opdata.suppressed_wfm[flash.ch]) )
+                            y = opdata.suppressed_wfm[flash.ch]
+                            chsuppressed.setData( x=x, y=y, pen=(255,255,255,255) )
+                            opdisplay.addUserWaveformItem( chsuppressed, ch=flash.ch )
 
                 #for flash in subevent.getFlash2List():
                 #    plot_flash = makeFlashPlotItem( flash, seconfig, color=colorlist[ isubevent%6 ] )
@@ -170,6 +179,18 @@ def test_runSubEventFinder( opdata, seconfig, filename, opdisplay=None ):
             for flash in unclaimed_flashes.getFlashes():
                 plot_flash = makeFlashPlotItem( flash, seconfig, color=(0,255,0,255) )
                 opdisplay.addUserWaveformItem( plot_flash, ch=flash.ch )
+            for ch in range(0,32):
+                plot_baseline = pg.PlotCurveItem()
+                x = np.linspace( 0, len(baselines[:,ch])*seconfig.nspersample, len(baselines[:,ch]) )
+                y = baselines[:,ch]
+                plot_baseline.setData( x=x, y=y, pen=(255,153,51,255) )
+                opdisplay.addUserWaveformItem( plot_baseline, ch=ch )
+
+                plot_variance = pg.PlotCurveItem()
+                x = np.linspace( 0, len(variances[:,ch])*seconfig.nspersample, len(variances[:,ch]) )
+                y = variances[:,ch]
+                plot_variance.setData( x=x, y=y, pen=(255,204,153,255) )
+                opdisplay.addUserWaveformItem( plot_variance, ch=ch )
 
         raw_input()
         ok = opdata.getNextEvent()
@@ -177,6 +198,7 @@ def test_runSubEventFinder( opdata, seconfig, filename, opdisplay=None ):
 def test_cosmicsubeventfinder( opdata, config, opdisplay=None ):
     # stuff data into interface class
     cosmic_subevents, boundarysubevent = prepCosmicSubEvents( opdata )
+    boundarysubevent = None # way to hack it to not make corrections
     wfms,qs = prepWaveforms( opdata, boundarysubevent )
     
     if opdisplay is not None:
@@ -204,8 +226,8 @@ if __name__ == "__main__":
     #fname = "../../data/pmtratedata/run2597_filterreconnect.root"
     fname = "../../data/pmtratedata/pmtrawdigits_recent_radon.root"
     opdata = RawDigitsOpData( fname )
-    ok = opdata.getNextEvent()
-    #ok = opdata.getEvent(1)
+    #ok = opdata.getNextEvent()
+    ok = opdata.getEvent(197)
     if vis:
         app = QtGui.QApplication([])
         opdisplay = OpDetDisplay( opdata )
