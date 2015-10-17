@@ -45,8 +45,9 @@ namespace subevent {
     };
   };
 
-
+  
   typedef std::vector< CosmicWinIndex >::iterator CosmicWindowIndexIter;
+  typedef std::map< CosmicWinIndex, std::vector< double > >::iterator CosmicWfmMapIter;
 
   class CosmicWindowHolder {
 
@@ -58,11 +59,11 @@ namespace subevent {
     std::vector< CosmicWinIndex > indexLG;
     std::map< CosmicWinIndex, std::vector< double > > highGainWfmMap;
     std::map< CosmicWinIndex, std::vector< double > > lowGainWfmMap;
-    void addHG( int ch, int t_sample, std::vector< double > wfm ) { 
+    void addHG( int ch, int t_sample, const std::vector< double >& wfm ) { 
       indexHG.push_back( CosmicWinIndex( t_sample, ch ) );
-      highGainWfmMap[ CosmicWinIndex( t_sample, ch ) ] = wfm;
+      highGainWfmMap[ CosmicWinIndex( t_sample, ch ) ] = std::vector< double >( wfm.begin(), wfm.end() );
     };
-    void addLG( int ch, int t_sample, std::vector< double > wfm ) { 
+    void addLG( int ch, int t_sample, const std::vector< double >& wfm ) { 
       indexLG.push_back( CosmicWinIndex( t_sample, ch ) );
       lowGainWfmMap[ CosmicWinIndex( t_sample, ch ) ] = wfm;
     };
