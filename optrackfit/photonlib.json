@@ -1,0 +1,13 @@
+{
+  "datafile":"uboone_photon_library_v4.root",
+  "xmin":"-63.435",
+  "xmax":"319.785",
+  "ymin":"-191.61",
+  "ymax":"191.61",
+  "zmin":"-92.375",
+  "zmax":"1129.38",
+  "Nx":"75",
+  "Ny":"75",
+  "Nz":"400",
+  "NOpChannels":"32"
+}
