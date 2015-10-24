@@ -86,11 +86,18 @@ cyext_cfdisc = Extension("pysubevent/pycfdiscriminator/cycfdiscriminator",
                          libraries=["cfdiscriminator","cfdiscdata"]+rootlibs,
                          extra_compile_args=['-std=c++11','-D__BUILD_ROOT_DICT__'],
                          language="c++")
-cythonExtensions = cythonize([cyext_cfdisc,cyext_subevent])
+cyext_photonlib = Extension( "pysubevent/pyubphotonlib/cyubphotonlib",
+                             ["pysubevent/pyubphotonlib/cyubphotonlib.pyx","pysubevent/pyubphotonlib/PhotonVoxels.cxx","pysubevent/pyubphotonlib/PhotonLibrary.cxx"],
+                             include_dirs=[rootincdir],
+                             library_dirs=[rootlibdir],
+                             libraries=rootlibs,
+                             language="c++" )
+
+cythonExtensions = cythonize([cyext_cfdisc,cyext_subevent,cyext_photonlib])
 
 setup(
     name='pysubevent',
     ext_modules=[ext_cfdiscdata, ext_cfdisc,ext_subeventdisc,ext_subeventdata]+cythonExtensions,
     include_dirs=[numpy.get_include()],
-    packages=['pysubevent','pysubevent/pysubevent','pysubevent/pycfdiscriminator','pysubevent/femsim','pysubevent/utils'],
+    packages=['pysubevent','pysubevent/pysubevent','pysubevent/pycfdiscriminator','pysubevent/femsim','pysubevent/utils','pysubevent/pyubphotonlib'],
 )  
