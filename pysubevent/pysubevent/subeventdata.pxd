@@ -11,6 +11,7 @@ cdef extern from "Flash.hh" namespace "subevent":
         int tmax
         double maxamp
         double area
+        double area30
         vector[double] expectation
         vector[double] waveform
 

@@ -84,6 +84,10 @@ cdef class pyFlash:
     property tmax:
         def __get__(self): return self.thisptr.tmax
         def __set__(self,x): self.thisptr.tmax = x
+    property area:
+        def __get__(self): return self.thisptr.area
+    property area_prompt:
+        def __get__(self): return self.thisptr.area30
     property isowner:
         def __get__(self): return self.__isowner
         def __set__(self,bint x): self.__isowner = x

@@ -56,7 +56,7 @@ namespace subevent {
       else return false;
     };
     static bool compareAmp( SubEvent& amp1, SubEvent& amp2 ) {
-      if ( amp1.maxamp<amp2.maxamp ) return true;
+      if ( amp1.maxamp>amp2.maxamp ) return true;
       else return false;
     };
     

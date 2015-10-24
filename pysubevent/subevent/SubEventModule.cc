@@ -3,8 +3,8 @@
 #include "FlashList.hh"
 #include "SubEventList.hh"
 #include "WaveformData.hh"
-#include "uboone/OpticalDetectorAna/OpticalSubEvents/cfdiscriminator_algo/cfdiscriminator.hh"
-//#include "cfdiscriminator.hh"
+//#include "uboone/OpticalDetectorAna/OpticalSubEvents/cfdiscriminator_algo/cfdiscriminator.hh" // for use with larsoft
+#include "cfdiscriminator.hh"
 #include "scintresponse.hh"
 #include <algorithm>
 #include <iostream>
@@ -128,7 +128,6 @@ namespace subevent {
       opflash.area = 0.0;
       for (int tdc=0; tdc<(int)opflash.expectation.size(); tdc++) {
 	fx = opflash.expectation.at(tdc);
-	std::cout << opflash.tstart+tdc << " ";
 	if ( opflash.tstart+tdc<baseline.size() )
 	  chped = baseline.at( opflash.tstart+tdc );
 	else
@@ -168,7 +167,7 @@ namespace subevent {
       int ch = *it;
       std::vector< double > postwfm;
       getChannelFlashes( ch, wfms.get( ch ), wfms.getbaseline( ch ), config, discrname, flashes, postwfm );
-      std::cout << "search for flashes in channel=" << ch << ". found=" << flashes.size() << std::endl;
+      //std::cout << "search for flashes in channel=" << ch << ". found=" << flashes.size() << std::endl;
       postwfms.set( ch, postwfm, wfms.isLowGain(ch) );
     }
   }
@@ -417,5 +416,8 @@ namespace subevent {
       
     }
   }
+  // End of Analyze SubEvents
+
+  
 
 }

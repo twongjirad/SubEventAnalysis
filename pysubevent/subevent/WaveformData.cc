@@ -92,7 +92,7 @@ namespace subevent {
 	  if ( k<mean.size() ) {
 	    double dydx = ( mean.at(k)-mean.at(i-1) )/double( k-(i-1) );
 	    for (int l=i; l<k; l++) {
-	      var.at(l) = 0.0;
+	      //var.at(l) = 0.0;
 	      mean.at(l) = mean.at(i-1) + dydx*( l-(i-1) );
 	    }
 	    lastmean = i;
