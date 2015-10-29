@@ -7,13 +7,29 @@ cimport cython
 from libcpp.vector cimport vector
 from libcpp.string cimport string
 
+cdef extern from "TVector3.h":
+  cdef cppclass TVector3:
+    TVector3( double x, double y, double z ) except +
+    double x() const
+    double y() const
+    double z() const
+
 cdef extern from "PhotonVoxels.h" namespace "ubphotonlib":
   cdef cppclass PhotonVoxels:
     PhotonVoxels( double xMin, double xMax, double yMin, double yMax, double zMin, double zMax, int N=0 ) except +
-    
+
+  cdef cppclass PhotonVoxel:
+    PhotonVoxel() except+
+    TVector3 GetCenter() const
+    TVector3 GetLowerCorner() const
+    TVector3 GetUpperCorner() const
+
   cdef cppclass PhotonVoxelDef:
     PhotonVoxelDef( double xMin, double xMax, int xN, double yMin, double yMax, int yN, double zMin, double zMax, int zN) except +
-    int GetVoxelID( double* pos ) const                             
+    int GetVoxelID( double* pos ) const
+    vector[int] GetVoxelCoords( int id )
+    PhotonVoxel GetContainingVoxel( TVector3 ) const
+
 
 cdef extern from "PhotonLibrary.h" namespace "ubphotonlib":
   cdef cppclass PhotonLibrary:
@@ -33,9 +49,18 @@ cdef class  PyPhotonVoxelDef:
       self.thisptr = new PhotonVoxelDef( xMin, xMax, xN, yMin, yMax, yN, zMin, zMax, zN )
   def __delloc__(self):
       del self.thisptr
-  def getVoxelID( self, np.ndarray[np.float, ndim=1] pos ):
+  def getVoxelID( self, np.ndarray[np.float_t, ndim=1] pos ):
       cdef int voxid = self.thisptr.GetVoxelID( <double*>pos.data )
       return voxid
+  def getVoxelCenter( self, np.ndarray[np.float_t, ndim=1] pos ):
+      cdef PhotonVoxel voxel = self.thisptr.GetContainingVoxel( TVector3( pos[0], pos[1], pos[2] ) )
+      return np.asarray( [ voxel.GetCenter().x(), voxel.GetCenter().y(), voxel.GetCenter().z() ] )
+  def getVoxelLowerCorner( self, np.ndarray[np.float_t, ndim=1] pos ):
+      cdef PhotonVoxel voxel = self.thisptr.GetContainingVoxel( TVector3( pos[0], pos[1], pos[2] ) )
+      return np.asarray( [ voxel.GetLowerCorner().x(), voxel.GetLowerCorner().y(), voxel.GetLowerCorner().z() ] )
+  def getVoxelUpperCorner( self, np.ndarray[np.float_t, ndim=1] pos ):
+      cdef PhotonVoxel voxel = self.thisptr.GetContainingVoxel( TVector3( pos[0], pos[1], pos[2] ) )
+      return np.asarray( [ voxel.GetUpperCorner().x(), voxel.GetUpperCorner().y(), voxel.GetUpperCorner().z() ] )
 
 cdef class PyPhotonLibrary:
   cdef PhotonLibrary *thisptr # hold a C++ instance which we're wrapping

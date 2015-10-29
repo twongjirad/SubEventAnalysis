@@ -1,5 +1,6 @@
 #include "WaveformData.hh"
 #include <cmath>
+#include <iostream>
 
 namespace subevent {
 
@@ -73,13 +74,30 @@ namespace subevent {
       // now we chuck any spots that have high variance connecting them linearly between good baselines
       
       // get first good mean and replace
-      int j=0; 
-      while ( j<var.size() && var.at(j)>1.0 )
-	j++;
-      for (int i=0; i<j; i++) {
-	mean.at(i) = mean.at(j);
-	var.at(i) = 0.0;
-      }
+      int j=var.size(); 
+      double varthreshold = 1.0;
+      while (j>=var.size()) {
+	j = 0;
+	// search for first good variance region
+	while ( j<var.size() && var.at(j)>varthreshold )
+	  j++;
+	if ( j<mean.size() ) {
+	  for (int i=0; i<j; i++) {
+	    mean.at(i) = mean.at(j);
+	    var.at(i) = 0.0;
+	  }
+	}
+	else {
+	  varthreshold *= 10.0;
+	  std::cout << "no good baseline found, try with higher threhsold: " << varthreshold << std::endl;
+	}
+	if ( varthreshold>100.0 ) {
+	  // just start at zero
+	  var.at(0) = 0.0;
+	  break;
+	}
+	  
+      }//loop until good variance region
 
       
       int lastmean = j;

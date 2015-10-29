@@ -222,4 +222,12 @@ namespace ubphotonlib {
     return ReturnVector;
     
   }
+
+  //----------------------------------------------------------------------------
+  PhotonVoxel PhotonVoxelDef::GetContainingVoxel( TVector3 vect ) const {
+    int id = GetVoxelID( vect );
+    return GetPhotonVoxel( id );
+  }
+
 }
+

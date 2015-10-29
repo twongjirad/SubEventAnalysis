@@ -1,7 +1,7 @@
 import os,sys
 import json
 import ROOT as rt
-import pyubphotonlib.cyubphotonlib as cyplib
+import pysubevent.pyubphotonlib.cyubphotonlib as cyplib
 
 class PhotonVisibility:
     def __init__( self, config_json_file ):
@@ -29,4 +29,8 @@ class PhotonVisibility:
         pass
 
     def getVoxel( pos ):
+        return self.voxeldef.getVoxelID( pos )
+
+    def getPos( voxelid ):
         pass
+
