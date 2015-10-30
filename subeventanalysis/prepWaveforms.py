@@ -13,7 +13,7 @@ def prepWaveforms( opdata, boundarysubevent=None ):
     qs   = {} # will store charge correction  for each channel
 
     nlargest = 0
-    for ch in range(0,36):
+    for ch in range(0,48):
         wins = opdata.getBeamWindows( hgslot, ch )
         if len(wins)>0 and len(wins[0].wfm)>0:
             if len(wins[0].wfm)>nlargest:
@@ -37,7 +37,7 @@ def prepWaveforms( opdata, boundarysubevent=None ):
             while qcorr[-1]>1.0:
                 q = qcorr[-1]*np.exp( -1.0*15.625/RC )
                 qcorr.append( q )
-            #print "channel ",ch," has a boundary correction of length ",len(qcorr)," starting from time=",t
+            print "channel ",ch," has a boundary correction of length ",len(qcorr)," starting from time=",t
             boundary_corrections[ch] = ( t, np.asarray( qcorr, dtype=np.float ) )
 
     # get waveforms, swap for low if needed, remove pedestal
@@ -47,9 +47,8 @@ def prepWaveforms( opdata, boundarysubevent=None ):
         if np.max( beamwfm.wfm )<4090:
             wfms[ch] = beamwfm.wfm
         else:
-            #print "swap HG ch",ch," with LG wfm"
             lgwins = opdata.getBeamWindows( lgslot, ch )
-            #print "lg ch=",ch,lgwins,opdata.beamwindows.chwindows
+            print "swap HG ch",ch," with LG wfm",lgwins
             lgwfm = lgwins[0].wfm
             
             lgped = getpedestal( lgwfm, 20, 10.0 )
@@ -79,10 +78,11 @@ def prepWaveforms( opdata, boundarysubevent=None ):
                 if ped is None:
                     ped = wfms[ch][tlen]
 
-                #print "suppress using boundary flash on channel ",ch
+                print "suppress using boundary flash on channel ",ch,". tlen=",tlen
                 #flash = boundarysubevent.getFlash( ch )
                 #expectation = flash.expectation
                 opdata.suppressed_wfm[ch] = np.copy( wfms[ch][:tlen-1] )
+                
                 wfms[ch][:tlen-1] = ped
                 #
                 #for i in range(0,tlen-1):
@@ -111,35 +111,40 @@ def prepWaveforms( opdata, boundarysubevent=None ):
     
     npwfms = np.zeros( (nlargest,48), dtype=np.float )
     for ch,wfm in wfms.items():
-        npwfms[:,ch] = wfm[:]
+        npwfms[:len(wfm),ch] = wfm[:]
     return npwfms,qs
 
 from pysubevent.pysubevent.cysubeventdisc import pyCosmicWindowHolder, formCosmicWindowSubEventsCPP
 def prepCosmicSubEvents( opdata, config ):
+    
+    print "prepCosmicSubEvents"
+
     # stuff data into interface class
-    cosmics = pyCosmicWindowHolder()
-    for ch,timelist in opdata.cosmicwindows.chtimes.items():
+    cosmics = pyCosmicWindowHolder()    
+    for (slot,ch),timelist in opdata.cosmicwindows.chtimes.items():
         if ch>=32:
             continue
         for t in timelist:
-            cwd = opdata.cosmics.chwindows[ch][t]
-            #cwd.wfm -= 2048.0 # remove pedestal. no means to measure pedestal
+            cwd = opdata.cosmicwindows.chwindows[(slot,ch)][t]
+            cwd.wfm -= 2048.0 # remove pedestal. no means to measure pedestal
+            #print cwd.wfm
+
             wfm = np.asarray( cwd.wfm, dtype=np.float )
+            #print wfm
+            tsample = int(t/config.nspersample)
             if cwd.slot==6:
                 wfm *= 10.0 # high gain window
-                #print "lg waveform: ",ch,t
-                cosmics.addLGWaveform( ch, t, wfm)
+                print "lg waveform: ",ch,t,tsample
+                cosmics.addLGWaveform( ch, tsample, wfm)
             elif cwd.slot==5:
-                #print "hg waveform: ",ch,t
-                cosmics.addHGWaveform( ch, t, wfm )
+                print "hg waveform: ",ch,t,tsample
+                cosmics.addHGWaveform( ch, tsample, wfm )
         
     subevents = formCosmicWindowSubEventsCPP( cosmics, config )
 
     boundarysubevent = None
     largest = 0
     for subevent in subevents.getlist():
-        #print "subevent: ",subevent.tstart_sample, subevent.tend_sample
-        #if ( subevent.tstart_sample<0 and subevent.tend_sample>0 ):
         if subevent.tstart_sample<0 and subevent.tstart_sample*0.015625>=-40.0: # 20 us
             totalamp = 0.0
             for flash in subevent.getFlashList():
@@ -149,5 +154,5 @@ def prepCosmicSubEvents( opdata, config ):
                 boundarysubevent = subevent
                 largest = totalamp
     if boundarysubevent is not None:
-        print "[BOUNDARY SUBEVENT] start=",boundarysubevent.tstart_sample," end=",boundarysubevent.tend_sample, " amp=", boundarysubevent.maxamp
-    return subevents,boundarysubevent
+        print "[BOUNDARY SUBEVENT] start=",boundarysubevent.tstart_sample," end=",boundarysubevent.tend_sample, " amp=", largest
+    return subevents, boundarysubevent

@@ -131,6 +131,7 @@ def test_runSubEventFinder( opdata, seconfig, filename, opdisplay=None ):
     while ok:
 
         cosmic_subevents, boundary_subevent = prepCosmicSubEvents( opdata, seconfig )
+
         #boundary_subevent = None
         wfms,qs = prepWaveforms( opdata, boundary_subevent )   # extract numpy arrays
         pywfms = pyWaveformData()
@@ -174,10 +175,10 @@ def test_runSubEventFinder( opdata, seconfig, filename, opdisplay=None ):
                         x = np.linspace( seconfig.nspersample*flash.tstart, seconfig.nspersample*(flash.tstart+len(flash.waveform)), len(flash.waveform) )
                         y = flash.waveform
                         opdata.userwindows.makeWindow( y, x, 5, flash.ch, default_color=colorlist[ isubevent%6 ], highlighted_color=colorlist[ isubevent%6 ] )
-                        if bflash.ch in opdata.suppressed_wfm:
-                            beamchoffset2 = opdata.getBeamWindows( hgslot, bflash.ch )[0].getTimestamp()
-                            x = np.linspace( 0, len(opdata.suppressed_wfm[bflash.ch])*seconfig.nspersample, len( opdata.suppressed_wfm[bflash.ch]) ) + beamchoffset2
-                            y = opdata.suppressed_wfm[bflash.ch]
+                        if flash.ch in opdata.suppressed_wfm:
+                            beamchoffset2 = opdata.getBeamWindows( hgslot, flash.ch )[0].getTimestamp()
+                            x = np.linspace( 0, len(opdata.suppressed_wfm[flash.ch])*seconfig.nspersample, len( opdata.suppressed_wfm[flash.ch]) ) + beamchoffset2
+                            y = opdata.suppressed_wfm[flash.ch]
                             opdata.userwindows.makeWindow( y, x, 5, flash.ch )
 
                 for flash in subevent.getFlash2List():
@@ -195,8 +196,8 @@ def test_runSubEventFinder( opdata, seconfig, filename, opdisplay=None ):
                 beamchoffset = opdata.getBeamWindows( hgslot, ch )[0].getTimestamp()
                 x = np.linspace( 0, len(baselines[:,ch])*seconfig.nspersample, len(baselines[:,ch]) ) + beamchoffset
                 y = baselines[:,ch]
-                opdata.userwindows.makeWindow( y, x, 5, ch, default_color=(255,128,0,255), highlighted_color=(255,128,0,255) )
-
+                #opdata.userwindows.makeWindow( y, x, 5, ch, default_color=(255,128,0,255), highlighted_color=(255,128,0,255) )
+                
                 #plot_variance = pg.PlotCurveItem()
                 #x = np.linspace( 0, len(variances[:,ch])*seconfig.nspersample, len(variances[:,ch]) )
                 #y = variances[:,ch]
@@ -204,7 +205,8 @@ def test_runSubEventFinder( opdata, seconfig, filename, opdisplay=None ):
                 #opdisplay.addUserWaveformItem( plot_variance, ch=ch )
 
         #if subevents.size>0:
-            opdisplay.plotData()
+            #opdisplay.plotData()
+            opdisplay.gotoEvent( opdata.event )
             raw_input()
         ok = opdata.getNextEntry()
 
@@ -239,13 +241,13 @@ if __name__ == "__main__":
 
     #fname = "../../data/pmtratedata/run2668_filterreconnect_rerun.root"
     #fname = "../../data/pmtratedata/run2597_filterreconnect.root"
-    #fname = "../../data/pmtratedata/pmtrawdigits_recent_radon.root"
+    fname = "../../data/pmtratedata/pmtrawdigits_recent_radon.root"
     #fname = "raw_digits.root"
     #fname = "../mc_piminus_rawdigits_nodark.root"
-    #opdata = RawDigitsOpData( fname )
-    opdata = LArLiteOpticalData( "../../mc/mcc6.1samples/mcc6.1sample_3_2493461_0.root" )
-    ok = opdata.getNextEntry()
-    #ok = opdata.getEvent(1)
+    opdata = RawDigitsOpData( fname )
+    #opdata = LArLiteOpticalData( "../../mc/mcc6.1samples/mcc6.1sample_3_2493461_0.root" )
+    #ok = opdata.getNextEntry()
+    ok = opdata.gotoEvent(42)
     if vis:
         app = QtGui.QApplication([])
         opdisplay = OpDetDisplay( opdata )
