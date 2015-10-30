@@ -1,7 +1,7 @@
 import os,sys
 import numpy as np
 from pysubevent.utils.pedestal import getpedestal
-from prepWaveforms import prepWaveforms, prepCosmicSubEvents
+from pysubevent.pysubevent.prepWaveforms import prepWaveforms, prepCosmicSubEvents
 
 vis = True
 
