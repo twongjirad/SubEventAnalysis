@@ -29,6 +29,7 @@ cdef extern from "PhotonVoxels.h" namespace "ubphotonlib":
     int GetVoxelID( double* pos ) const
     vector[int] GetVoxelCoords( int id )
     PhotonVoxel GetContainingVoxel( TVector3 ) const
+    TVector3 GetSteps() const
 
 
 cdef extern from "PhotonLibrary.h" namespace "ubphotonlib":
@@ -61,6 +62,8 @@ cdef class  PyPhotonVoxelDef:
   def getVoxelUpperCorner( self, np.ndarray[np.float_t, ndim=1] pos ):
       cdef PhotonVoxel voxel = self.thisptr.GetContainingVoxel( TVector3( pos[0], pos[1], pos[2] ) )
       return np.asarray( [ voxel.GetUpperCorner().x(), voxel.GetUpperCorner().y(), voxel.GetUpperCorner().z() ] )
+  def getSteps( self ):
+      return np.asarray( [ self.thisptr.GetSteps().x(), self.thisptr.GetSteps().y(), self.thisptr.GetSteps().z() ] )
 
 cdef class PyPhotonLibrary:
   cdef PhotonLibrary *thisptr # hold a C++ instance which we're wrapping

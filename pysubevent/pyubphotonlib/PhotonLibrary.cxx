@@ -42,7 +42,10 @@ namespace ubphotonlib {
   }
 
   float PhotonLibrary::GetCounts( size_t voxel, int opchannel ) {
-    return fLookupTable[ voxel ][opchannel];
+    if ( voxel>=0 && voxel<fLookupTable.size() )
+      if ( opchannel>=0 && opchannel<fLookupTable[ voxel ].size() )
+	return fLookupTable[ voxel ][opchannel];
+    return 0.0;
   }
 
   void PhotonLibrary::GetCounts( size_t voxel, std::vector<float>& opchan_counts ) {

@@ -3,8 +3,10 @@ import emcee # the MCMC Hammer
 import numpy as np
 sys.path.append("/Users/twongjirad/working/uboone/SubEventAnalysis/subeventananlysis")
 from pysubevent.utils.pedestal import getpedestal
-from prepWaveforms import prepCosmicSubEvents, prepWaveforms
-from pysubevent.pyubphotonlib import PhotonVisibility
+from pysubevent.pysubevent.prepWaveforms import prepCosmicSubEvents, prepWaveforms
+from pysubevent.pyubphotonlib.photonvisibility import PhotonVisibility
+from pylard.config.pmtpos import getPosFromID
+import matplotlib.pyplot as pl
 
 vis = True
 if vis:
@@ -30,7 +32,10 @@ def makeFlashPlotItem( flash, seconfig, color=(255,0,0,255) ):
     y = flash.expectation
     chsubevent.setData( x=x, y=y, pen=color )
     return chsubevent    
-
+def makeFlashPlotArrays( flash, seconfig, color=(255,0,0,255) ):
+    x = np.linspace( seconfig.nspersample*flash.tstart, seconfig.nspersample*flash.tend, len(flash.expectation) )
+    y = flash.expectation
+    return x,y
 
 # =========================================================================================================
 # Op Track Fit
@@ -83,10 +88,18 @@ def extractFeatureVariables( subevent ):
     t = np.zeros( NCHANS, dtype=np.float )
     prompt_pe = np.zeros( NCHANS, dtype=np.float )
     tot_pe = np.zeros( NCHANS, dtype=np.float )
+    tmin = 1e200
     for flash in subevent.getFlashList():
+        tflash = flash.tstart*NSPERTICK
+        if tflash<tmin:
+            tmin = tflash
         t[ flash.ch ] = flash.tstart*NSPERTICK
         prompt_pe[ flash.ch ] = flash.area_prompt/TEMP_SPEAREA
         tot_pe[ flash.ch ] = flash.area/TEMP_SPEAREA
+    # subtract off leading time for non-zero elements
+    for i in range(0,len(t)):
+        if prompt_pe[i]>0:
+            t[i] -= tmin
 
     return OpFeatureVector( t, prompt_pe, tot_pe )
 
@@ -99,13 +112,192 @@ class TrackHypothesis:
         a = np.dstack( (self.start, self.end ) )
         return a.flatten()
 
-def makeVoxelList( track ):
+def makeVoxelList( track, LY, dEdx ):
     """
     from a track hypothesis, make lists of:
     1) voxelid
     2) track length in voxel
     """
+    diff = track.end-track.start
+    dleft = 0.0
+    for i in range(0,3):
+        dleft += diff[i]*diff[i];
+    dleft = np.sqrt(dleft)
+
+    dvec = diff/dleft
     
+    # find first voxel bounds
+    upper = photonlib.voxeldef.getVoxelLowerCorner( track.start )
+    lower = photonlib.voxeldef.getVoxelUpperCorner( track.start )
+
+    voxsize = np.asarray( [ (photonlib.xmax-photonlib.xmin)/photonlib.Nx, (photonlib.ymax-photonlib.ymin)/photonlib.Ny, (photonlib.zmax-photonlib.zmin)/photonlib.Nz ] )
+
+    nsteps = 0
+    currentpos = np.asarray( track.start )
+    #print "Start"
+    #print "  pos: ",currentpos
+    #print "  dir: ",dvec
+    #print "  voxels: ", upper,lower
+    #print "  voxsize: ",voxsize
+
+    step_photons = []
+    steps = []
+
+    while dleft>0.0:
+    
+        # first intersection test
+        # x
+        s = np.zeros( 3 )
+        for i in range(0,3):
+            if dvec[i]!=0:
+                s1 = (upper[i]-currentpos[i])/dvec[i]
+                s2 = (lower[i]-currentpos[i])/dvec[i]
+                if s1>0:
+                    s[i] = s1
+                else:
+                    s[i] = s2
+            else:
+                s[i] = -1.0 # we can use as sentinel since we always go forward
+        shortest_s = -1
+        shortest_i = -1
+        for i in range(0,3):
+            if s[i]>0 and ( shortest_s<0 or s[i]<shortest_s ):
+                shortest_s = s[i]
+                shortest_i = i
+        if shortest_i<0:
+            break # we've gone past
+
+        # distance to end of track
+        dleft = 0.0
+        for i in range(0,3):
+            dleft += ( track.end[i]-currentpos[i] )*( track.end[i]-currentpos[i] )
+        dleft = np.sqrt( dleft )
+
+        # look for stopping condition 
+        # (1) at end of track
+        if dleft < shortest_s:
+            next = track.end
+            dleft = 0.0
+        else:
+            # move to next intersection
+            next = currentpos + shortest_s*dvec
+        # (2) outside of box
+        if next[0] > photonlib.xmax or next[0]<photonlib.xmin:
+            break
+        if next[1] > photonlib.ymax or next[1]<photonlib.ymin:
+            break
+        if next[2] > photonlib.zmax or next[2]<photonlib.zmin:
+            break
+
+
+        # we update the voxels
+        # we move in the dimension hit
+        if shortest_s*dvec[shortest_i]>0:
+            upper[shortest_i] += voxsize[shortest_i]
+            lower[shortest_i] += voxsize[shortest_i]
+        else:
+            upper[shortest_i] -= voxsize[shortest_i]
+            lower[shortest_i] -= voxsize[shortest_i]
+            
+        # get the photons from this step
+        stepdist = 0.0
+        for i in range(0,3):
+            stepdist += ( next[i]-currentpos[i])*( next[i]-currentpos[i])
+        stepdist = np.sqrt(stepdist)
+
+        midpoint = currentpos + 0.5*shortest_s*dvec
+        chvis = []
+        for ch in range(0,32):
+            vis = photonlib.getCounts( midpoint, ch )
+            chvis.append( vis*(LY*dEdx*stepdist) )
+        step_photons.append( chvis )
+        steps.append( midpoint )
+
+        # move to next step
+        currentpos = next
+
+        # distance to end of track again
+        dleft = 0.0
+        for i in range(0,3):
+            dleft += ( track.end[i]-currentpos[i] )*( track.end[i]-currentpos[i] )
+        dleft = np.sqrt( dleft )
+
+        #print "step %d update"%(nsteps)
+        #print "  pos: ",currentpos
+        #print "  voxels: ",upper,lower
+        #print "  dist remaining: ",dleft
+        #print "  shortest_s: ",shortest_s
+        nsteps += 1
+        #raw_input()
+    # print "made it"
+    np_photons = np.asarray( step_photons )
+
+    return steps, np_photons
+
+def makeFeatureHypothesis( track ):
+    QE = 0.093
+    LY = 29000.0
+    dEdx = 2.0
+    fprompt = 0.3
+    clar = (3.0e8*100.0*1.0e-9)/1.2
+    pmtplane = -14.7 # cm
+    
+    # get track photons and step points
+    midpoints, stepphotons = makeVoxelList( track, LY, dEdx )
+    # turn this into a feature vector
+    track_t        = np.zeros( 32 )
+    track_peprompt = np.zeros( 32 )
+    track_petot    = np.zeros( 32 )
+    for ipmt in range(0,32):
+        apmtpos = getPosFromID( ipmt ) # change from mm to cm
+        pmtpos = np.asarray( [pmtplane,apmtpos[1],apmtpos[2]+500.0] )
+
+        tearliest = 1e200
+        peprompt = 0.0
+        petotal = 0.0
+        for n in range(0,len(midpoints)):
+            dist = 0.0
+            for i in range(0,3):
+                dist += (pmtpos[i]-midpoints[n][i])*(pmtpos[i]-midpoints[n][i])
+            dist = np.sqrt(dist)
+            dt = dist/clar
+            if dt<tearliest:
+                tearliest = dt
+            peprompt += stepphotons[n][ipmt]*QE*fprompt
+            petotal += stepphotons[n][ipmt]*QE*(1.0-fprompt)
+        track_t[ipmt] = tearliest
+        track_peprompt[ipmt] = peprompt
+        track_petot[ipmt] = petotal
+    # subtract off min
+    tmin = np.min(track_t)
+    track_t -= tmin
+    hypo = OpFeatureVector( track_t, track_peprompt, track_petot )
+    return hypo
+
+def likelihood( data, hypo ):
+    sig = np.asarray( [50.0, 10.0, 10.0 ] )
+    ll = 0.0
+    for i in range(0,len(data)):
+        ll -= 0.5*np.power( (data[i]-hypo[i])/sig[i%3], 2 )
+    return ll
+
+def lnProb( x, opfeatures ):
+    # ivar: track start,end
+    # datavec
+    s = x[:3]
+    e = x[3:]
+    trackhypo = TrackHypothesis( s, e )
+    hypovec = makeFeatureHypothesis( trackhypo )
+    ll = likelihood( opfeatures.makeFeatureVector(), hypovec.makeFeatureVector() )
+    # add weak proirs on track position
+    llweakpos = 0.0
+    detcenter = np.asarray( [125.0, 0.0, 500.0 ] )
+    detsig     = np.asarray( [ 2500.0, 2500.0, 10000.0 ] )
+    for i in range(0,3):
+        llweakpos += -0.5*np.power( (s[i]-detcenter[i])/detsig[i], 2 )
+        llweakpos += -0.5*np.power( (e[i]-detcenter[i])/detsig[i], 2 )
+    ll += llweakpos
+    return ll
 
 def OpTrackFit( subevents ):
     
@@ -123,6 +315,31 @@ def OpTrackFit( subevents ):
 
     print opfeatures.makeFeatureVector()
 
+    s = np.asarray( [ 150.0, 150.0, 500.0 ], dtype=np.float )
+    e = np.asarray( [ 150.0, -150.0, 500.0 ], dtype=np.float )
+    print "seed. start,end=",s,e
+    seedtrack = TrackHypothesis( s, e )
+
+    nwalkers = 50
+    ndims = 6
+    p0 = []
+    for i in range(0,nwalkers):
+        p1 = []
+        for x in range(0,3):
+            p1.append( np.random.normal( s[x], 2.0 ) )
+        for x in range(0,3):
+            p1.append( np.random.normal( e[x], 2.0 ) )
+        p0.append( p1 )
+            
+    sampler = emcee.EnsembleSampler(nwalkers, ndims, lnProb, args=[opfeatures])
+    sampler.run_mcmc( p0, 1000)
+    print "Sample ran."
+    for i in range(ndims):
+        pl.figure()
+        pl.hist(sampler.flatchain[:,i], 100, color="k", histtype="step")
+        pl.title("Dimension {0:d}".format(i))
+    pl.show()
+    raw_input()
     return 
     
 from pysubevent.pysubevent.cysubeventdisc import pyWaveformData, pySubEventIO, pySubEventList
@@ -134,6 +351,8 @@ def test_runSubEventFinder( opdata, seconfig, filename, opdisplay=None ):
     pmtspe = spe.getCalib( "../config/pmtcalib_20150930.json" )
 
     ok = True
+    hgslot = 5
+    lgslot = 6
 
     while ok:
 
@@ -164,50 +383,56 @@ def test_runSubEventFinder( opdata, seconfig, filename, opdisplay=None ):
         print "op track fit returned"
             
         if opdisplay is not None:
-            opdisplay.clearUserWaveformItem()
-            opdisplay.gotoEvent( opdata.current_event )
+            # add subevent drawings
+            #opdisplay.clearUserWaveformItem()
             subeventlist = subevents.getlist()
             if boundary_subevent is not None:
                 subeventlist.append( boundary_subevent )
             for isubevent,subevent in enumerate( subeventlist ):
                 for flash in subevent.getFlashList():
-                    plot_flash = makeFlashPlotItem( flash, seconfig, color=colorlist[ isubevent%6 ] )
-                    opdisplay.addUserWaveformItem( plot_flash, ch=flash.ch ) # main subevents
+                    beamchoffset = opdata.getBeamWindows( hgslot, flash.ch )[0].getTimestamp()
+                    x,y = makeFlashPlotArrays( flash, seconfig, color=colorlist[ isubevent%6 ] )
+                    opdata.userwindows.makeWindow( y, x+beamchoffset, 5, flash.ch, default_color=colorlist[ isubevent%6 ], highlighted_color=colorlist[ isubevent%6 ] )
                     if subevent in [boundary_subevent]:
-                        chsubevent = pg.PlotCurveItem()
                         x = np.linspace( seconfig.nspersample*flash.tstart, seconfig.nspersample*(flash.tstart+len(flash.waveform)), len(flash.waveform) )
                         y = flash.waveform
-                        chsubevent.setData( x=x, y=y, pen=(255,255,255,255) )
-                        opdisplay.addUserWaveformItem( chsubevent, ch=flash.ch ) # boundary subevent
+                        opdata.userwindows.makeWindow( y, x, 5, flash.ch, default_color=colorlist[ isubevent%6 ], highlighted_color=colorlist[ isubevent%6 ] )
                         if flash.ch in opdata.suppressed_wfm:
-                            chsuppressed = pg.PlotCurveItem()
-                            x = np.linspace( 0, len(opdata.suppressed_wfm[flash.ch])*seconfig.nspersample, len( opdata.suppressed_wfm[flash.ch]) )
+                            beamchoffset2 = opdata.getBeamWindows( hgslot, flash.ch )[0].getTimestamp()
+                            x = np.linspace( 0, len(opdata.suppressed_wfm[flash.ch])*seconfig.nspersample, len( opdata.suppressed_wfm[flash.ch]) ) + beamchoffset2
                             y = opdata.suppressed_wfm[flash.ch]
-                            chsuppressed.setData( x=x, y=y, pen=(255,255,255,255) )
-                            opdisplay.addUserWaveformItem( chsuppressed, ch=flash.ch )
+                            opdata.userwindows.makeWindow( y, x, 5, flash.ch )
 
                 for flash in subevent.getFlash2List():
-                    plot_flash = makeFlashPlotItem( flash, seconfig, color=colorlist[ isubevent%6 ] )
-                    opdisplay.addUserWaveformItem( plot_flash, ch=flash.ch ) # subevent low-thresh hits
+                    beamchoffset = opdata.getBeamWindows( hgslot, flash.ch )[0].getTimestamp()
+                    x,y = makeFlashPlotArrays( flash, seconfig, color=colorlist[ isubevent%6 ] )
+                    opdata.userwindows.makeWindow( y, x+beamchoffset, 5, flash.ch, default_color=colorlist[ isubevent%6 ], highlighted_color=colorlist[ isubevent%6 ] )
+
             for flash in unclaimed_flashes.getFlashes():
-                plot_flash = makeFlashPlotItem( flash, seconfig, color=(0,255,0,255) )
-                #opdisplay.addUserWaveformItem( plot_flash, ch=flash.ch ) # unclaimed flashes
+                beamchoffset = opdata.getBeamWindows( hgslot, flash.ch )[0].getTimestamp()
+                x,y = makeFlashPlotArrays( flash, seconfig )
+                opdata.userwindows.makeWindow( y, x+beamchoffset, 5, flash.ch, default_color=(0,255,0,255), highlighted_color=(0,255,0,255)  )
+
             for ch in range(0,32):
                 plot_baseline = pg.PlotCurveItem()
-                x = np.linspace( 0, len(baselines[:,ch])*seconfig.nspersample, len(baselines[:,ch]) )
+                beamchoffset = opdata.getBeamWindows( hgslot, ch )[0].getTimestamp()
+                x = np.linspace( 0, len(baselines[:,ch])*seconfig.nspersample, len(baselines[:,ch]) ) + beamchoffset
                 y = baselines[:,ch]
-                plot_baseline.setData( x=x, y=y, pen=(255,153,51,255) )
-                opdisplay.addUserWaveformItem( plot_baseline, ch=ch )
-
-                plot_variance = pg.PlotCurveItem()
-                x = np.linspace( 0, len(variances[:,ch])*seconfig.nspersample, len(variances[:,ch]) )
-                y = variances[:,ch]
-                plot_variance.setData( x=x, y=y, pen=(255,204,153,255) )
-                opdisplay.addUserWaveformItem( plot_variance, ch=ch )
+                #opdata.userwindows.makeWindow( y, x, 5, ch, default_color=(255,128,0,255), highlighted_color=(255,128,0,255) )
+                
+                #plot_variance = pg.PlotCurveItem()
+                #x = np.linspace( 0, len(variances[:,ch])*seconfig.nspersample, len(variances[:,ch]) )
+                #y = variances[:,ch]
+                #plot_variance.setData( x=x, y=y, pen=(255,204,153,255) )
+                #opdisplay.addUserWaveformItem( plot_variance, ch=ch )
 
         #if subevents.size>0:
+            #opdisplay.plotData()
+            opdisplay.gotoEvent( opdata.event )
+  
+        #if subevents.size>0:
             raw_input()
-        ok = opdata.getNextEvent()
+        ok = opdata.getNextEntry()
 
 
 if __name__ == "__main__":
@@ -215,10 +440,12 @@ if __name__ == "__main__":
     from pysubevent.pysubevent.cysubeventdisc import pySubEventModConfig
     config = pySubEventModConfig( "discr1", "subevent.cfg" )
     from pylard.pylardata.rawdigitsopdata import RawDigitsOpData
+    from pylard.larlite_interface.larliteopdata import LArLiteOpticalData
     fname = "../../data/pmtratedata/pmtrawdigits_recent_radon.root"
+
     opdata = RawDigitsOpData( fname )
     #ok = opdata.getNextEvent()
-    ok = opdata.getEvent(5)
+    ok = opdata.gotoEvent(5)
     if vis:
         app = QtGui.QApplication([])
         opdisplay = OpDetDisplay( opdata )

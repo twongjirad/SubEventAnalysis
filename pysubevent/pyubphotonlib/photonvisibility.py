@@ -22,15 +22,15 @@ class PhotonVisibility:
         self.voxeldef = cyplib.PyPhotonVoxelDef( self.xmin, self.xmax, self.Nx, self.ymin, self.ymax, self.Ny, self.zmin, self.zmax, self.Nz )
         self.photonlib = cyplib.PyPhotonLibrary( str(config["datafile"]), self.voxeldef, int(config["NOpChannels"]) )
 
-    def getCounts( pos, opchannel ):
+    def getCounts( self, pos, opchannel ):
         return self.photonlib.getCounts( pos, opchannel )
 
-    def getVisibility( voxid ):
+    def getVisibility( self, voxid ):
         pass
 
-    def getVoxel( pos ):
+    def getVoxel( self, pos ):
         return self.voxeldef.getVoxelID( pos )
 
-    def getPos( voxelid ):
+    def getPos( self, voxelid ):
         pass
 
