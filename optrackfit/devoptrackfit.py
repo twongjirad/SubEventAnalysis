@@ -1,7 +1,7 @@
 import os,sys
 import emcee # the MCMC Hammer
 import numpy as np
-sys.path.append("/Users/twongjirad/working/uboone/SubEventAnalysis/subeventananlysis")
+import ROOT
 from pysubevent.utils.pedestal import getpedestal
 from pysubevent.pysubevent.prepWaveforms import prepCosmicSubEvents, prepWaveforms
 from pysubevent.pyubphotonlib.photonvisibility import PhotonVisibility
@@ -235,9 +235,13 @@ def makeVoxelList( track, LY, dEdx ):
     return steps, np_photons
 
 def makeFeatureHypothesis( track ):
-    QE = 0.093
+    # -70 kV
+    QE = 0.0093
     LY = 29000.0
-    dEdx = 2.0
+    # MCC 6.1 
+    #QE = 0.01
+    #LY = 24000.0
+    dEdx = 2.3
     fprompt = 0.3
     clar = (3.0e8*100.0*1.0e-9)/1.2
     pmtplane = -14.7 # cm
@@ -289,13 +293,44 @@ def lnProb( x, opfeatures ):
     trackhypo = TrackHypothesis( s, e )
     hypovec = makeFeatureHypothesis( trackhypo )
     ll = likelihood( opfeatures.makeFeatureVector(), hypovec.makeFeatureVector() )
-    # add weak proirs on track position
+
+    # 1 side-gaussian when outside of detector
+#     out1 = [0,0,0]
+#     if s[0]<photonlib.xmin:
+#         out1[0] = (s[0]-photonlib.xmin)/10.0
+#     elif s[0]>photonlib.xmax:
+#         out1[0] = (s[0]-photonlib.xmax)/10.0
+#     if s[1]<photonlib.ymin:
+#         out1[1] = (s[1]-photonlib.ymin)/10.0
+#     elif s[1]>photonlib.ymax:
+#         out1[1] = (s[1]-photonlib.ymax)/10.0
+#     if s[2]<photonlib.zmin:
+#         out1[2] = (s[2]-photonlib.zmin)/10.0
+#     elif s[2]>photonlib.zmax:
+#         out1[2] = (s[2]-photonlib.zmax)/10.0
+
+#     out2 = [0,0,0]
+#     if e[0]<photonlib.xmin:
+#         out2[0] = (e[0]-photonlib.xmin)/10.0
+#     elif e[0]>photonlib.xmax:
+#         out2[0] = (e[0]-photonlib.xmax)/10.0
+#     if e[1]<photonlib.ymin:
+#         out2[1] = (e[1]-photonlib.ymin)/10.0
+#     elif e[1]>photonlib.ymax:
+#         out2[1] = (e[1]-photonlib.ymax)/10.0
+#     if e[2]<photonlib.zmin:
+#         out2[2] = (e[2]-photonlib.zmin)/10.0
+#     elif e[2]>photonlib.zmax:
+#         out2[2] = (e[2]-photonlib.zmax)/10.0
+    
+    # add weak priors on track position
     llweakpos = 0.0
     detcenter = np.asarray( [125.0, 0.0, 500.0 ] )
-    detsig     = np.asarray( [ 2500.0, 2500.0, 10000.0 ] )
+    detsig     = np.asarray( [ 500.0, 500.0, 2000.0 ] )
     for i in range(0,3):
         llweakpos += -0.5*np.power( (s[i]-detcenter[i])/detsig[i], 2 )
         llweakpos += -0.5*np.power( (e[i]-detcenter[i])/detsig[i], 2 )
+        #llweakpos += -0.5*np.power( out1[i], 2 ) - 0.5*np.power( out2[i], 2 ) # edge penalties
     ll += llweakpos
     return ll
 
@@ -320,7 +355,7 @@ def OpTrackFit( subevents ):
     print "seed. start,end=",s,e
     seedtrack = TrackHypothesis( s, e )
 
-    nwalkers = 50
+    nwalkers = 40
     ndims = 6
     p0 = []
     for i in range(0,nwalkers):
@@ -332,13 +367,19 @@ def OpTrackFit( subevents ):
         p0.append( p1 )
             
     sampler = emcee.EnsembleSampler(nwalkers, ndims, lnProb, args=[opfeatures])
-    sampler.run_mcmc( p0, 1000)
-    print "Sample ran."
+    fitpos, prob, state  = sampler.run_mcmc( p0, 1000)
+    sampler.reset()
+    print "Sample burn-in finished."
+    pos = sampler.run_mcmc( fitpos, 1000)
+    print "Sample run finished."
+    np.savez( "tracksamples.npz", sampler.flatchain )
     for i in range(ndims):
         pl.figure()
         pl.hist(sampler.flatchain[:,i], 100, color="k", histtype="step")
         pl.title("Dimension {0:d}".format(i))
     pl.show()
+    print "samples saved"
+
     raw_input()
     return 
     
@@ -349,6 +390,10 @@ def test_runSubEventFinder( opdata, seconfig, filename, opdisplay=None ):
     from pysubevent.pysubevent.cysubeventdisc import formSubEventsCPP
     import pysubevent.utils.pmtcalib as spe
     pmtspe = spe.getCalib( "../config/pmtcalib_20150930.json" )
+
+    from pysubevent.pyoptrackfit.cyoptrackfit import runpyOpTrackFit, pyOpTrackFitConfig
+
+    opconfig = pyOpTrackFitConfig( "optrackfit.json" )
 
     ok = True
     hgslot = 5
@@ -376,10 +421,15 @@ def test_runSubEventFinder( opdata, seconfig, filename, opdisplay=None ):
             print "[NUMBER OF SUBEVENT: ",subevents.size,"]"
         else:
             print "[NUMBER OF SUBEVENT: ",subevents.size,"] + [BOUNDARY SUBEVENT]"
+
+        subevents.sortByAmp()
         for subevent in subevents.getlist():
             print subevents, "t=",subevent.tstart_sample, " nflashes=",len(subevent.getFlashList())
 
-        OpTrackFit( subevents )
+        print "Run OpTrackFin"
+        #OpTrackFit( subevents ) # pythonthin
+
+        runpyOpTrackFit( subevents.getlist()[0], opconfig, photonlib.photonlib ) # native c++
         print "op track fit returned"
             
         if opdisplay is not None:
@@ -442,9 +492,9 @@ if __name__ == "__main__":
     from pylard.pylardata.rawdigitsopdata import RawDigitsOpData
     from pylard.larlite_interface.larliteopdata import LArLiteOpticalData
     fname = "../../data/pmtratedata/pmtrawdigits_recent_radon.root"
-
     opdata = RawDigitsOpData( fname )
-    #ok = opdata.getNextEvent()
+    #opdata = LArLiteOpticalData( "../../mc/mcc6.1samples/mcc6.1sample_3_2493461_0.root" )
+    #ok = opdata.getNextEntry()
     ok = opdata.gotoEvent(5)
     if vis:
         app = QtGui.QApplication([])
