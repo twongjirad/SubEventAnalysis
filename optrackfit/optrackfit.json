@@ -1,7 +1,17 @@
 { 
+  "nwalkers":40,
+  "nburn":500,
+  "nsamples":500,
   "gQE":"0.0098",
   "LY":"29000.0",
   "dEdx":"2.3",
   "NCHANS":"32",
   "NSPERTICK":"15.625",
+  "fprompt":"0.3",
+  "sig_t":"100.0",
+  "sig_promptpe":"5.0",
+  "sig_totpe":"20.0",
+  "Clar":"25.0",
+  "detcenter":{"x":"125.0","y":"0.0","z":"500.0"},
+  "detsigma":{"x":"500.0","y","500.0","z":"2000.0"}
 }

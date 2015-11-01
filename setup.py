@@ -10,7 +10,7 @@ def distutils_dir_name(dname):
                     platform=sysconfig.get_platform(),
                     version=sys.version_info)
 
-builddir = os.path.join('build', distutils_dir_name('lib'))
+builddir = "/Users/twongjirad/working/uboone/SubEventAnalysis/"+os.path.join('build', distutils_dir_name('lib'))
 print builddir
 
 if sys.platform == 'darwin':
@@ -57,6 +57,21 @@ ext_subeventdisc = Extension( "pysubevent/subevent/libsubeventdisc",
                               libraries=["cfdiscriminator"]+rootlibs,
                               extra_compile_args=['-std=c++11','-D__BUILD_ROOT_DICT__'],
                               language="c++")
+ext_photonlib  = Extension( "pysubevent/pyubphotonlib/libphotonlib",
+                            ["pysubevent/pyubphotonlib/PhotonVoxels.cxx","pysubevent/pyubphotonlib/PhotonLibrary.cxx"],
+                            include_dirs=["pysubevent/pyubphotonlib",rootincdir],
+                            library_dirs=[rootlibdir],
+                            libraries=rootlibs,
+                            extra_compile_args=['-std=c++11','-D__BUILD_ROOT_DICT__'],
+                            language="c++")
+ext_optrackfit = Extension( "pysubevent/optrackfit/liboptrackfit",
+                            ["pysubevent/optrackfit/OpFeatureVector.cc", "pysubevent/optrackfit/TrackHypothesis.cc",
+                             "pysubevent/optrackfit/OpTrackModule.cc","pysubevent/optrackfit/OpTrackFitConfig.cc"],
+                            include_dirs=["pysubevent/subevent","pysubevent/pyubphotonlib",rootincdir],
+                            library_dirs=[builddir+"/pysubevent/subevent",builddir+"/pysubevent/pyubphotonlib",rootlibdir],
+                            libraries=["subeventdata","photonlib"]+rootlibs,
+                            extra_compile_args=['-std=c++11','-D__BUILD_ROOT_DICT__'],
+                            language="c++")
 cyext_subevent = Extension("pysubevent/pysubevent/cysubeventdisc",
                            ["pysubevent/pysubevent/cysubeventdisc.pyx"],
                            include_dirs=["pysubevent/subevent",rootincdir,"pysubevent/cfdiscriminator"],
@@ -64,7 +79,6 @@ cyext_subevent = Extension("pysubevent/pysubevent/cysubeventdisc",
                            libraries=["subeventdata","subeventdisc"]+rootlibs,
                            extra_compile_args=['-std=c++11','-D__BUILD_ROOT_DICT__'],
                            language='c++')
-
 ext_cfdiscdata = Extension( "pysubevent/cfdiscriminator/libcfdiscdata",
                             ["pysubevent/cfdiscriminator/CFDFire.cc","pysubevent/cfdiscriminator/dictcfdiscdata.cxx"],
                             library_dirs=[rootlibdir],
@@ -87,17 +101,24 @@ cyext_cfdisc = Extension("pysubevent/pycfdiscriminator/cycfdiscriminator",
                          extra_compile_args=['-std=c++11','-D__BUILD_ROOT_DICT__'],
                          language="c++")
 cyext_photonlib = Extension( "pysubevent/pyubphotonlib/cyubphotonlib",
-                             ["pysubevent/pyubphotonlib/cyubphotonlib.pyx","pysubevent/pyubphotonlib/PhotonVoxels.cxx","pysubevent/pyubphotonlib/PhotonLibrary.cxx"],
+                             ["pysubevent/pyubphotonlib/cyubphotonlib.pyx"],
                              include_dirs=[rootincdir],
-                             library_dirs=[rootlibdir],
-                             libraries=rootlibs,
+                             library_dirs=[rootlibdir,builddir+"/pysubevent/pyubphotonlib"],
+                             libraries=["photonlib"]+rootlibs,
                              language="c++" )
+cyext_optrackfit = Extension( "pysubevent/pyoptrackfit/cyoptrackfit",
+                              ["pysubevent/pyoptrackfit/cyoptrackfit.pyx"],
+                              include_dirs=["pysubevent/cfdiscriminator","pysubevent/subevent","pysubevent/pyubphotonlib","pysubevent/optrackfit",rootincdir],
+                              library_dirs=[builddir+"/pysubevent/optrackfit",rootlibdir],
+                              libraries=["optrackfit"]+rootlibs,
+                              extra_compile_args=['-std=c++11','-D__BUILD_ROOT_DICT__'],
+                              language="c++" )
 
-cythonExtensions = cythonize([cyext_cfdisc,cyext_subevent,cyext_photonlib])
+cythonExtensions = cythonize([cyext_cfdisc,cyext_subevent,cyext_photonlib,cyext_optrackfit])
 
 setup(
     name='pysubevent',
-    ext_modules=[ext_cfdiscdata, ext_cfdisc,ext_subeventdisc,ext_subeventdata]+cythonExtensions,
+    ext_modules=[ext_cfdiscdata, ext_cfdisc,ext_subeventdisc,ext_subeventdata,ext_photonlib,ext_optrackfit]+cythonExtensions,
     include_dirs=[numpy.get_include()],
-    packages=['pysubevent','pysubevent/pysubevent','pysubevent/pycfdiscriminator','pysubevent/femsim','pysubevent/utils','pysubevent/pyubphotonlib'],
+    packages=['pysubevent','pysubevent/pysubevent','pysubevent/pycfdiscriminator','pysubevent/femsim','pysubevent/utils','pysubevent/pyubphotonlib','pysubevent/optrackfit','pysubevent/pyoptrackfit'],
 )  

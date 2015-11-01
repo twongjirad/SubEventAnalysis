@@ -244,7 +244,6 @@ namespace optrackfit {
     return ll;
   }
 
-
   void runOpTrackFit( subevent::SubEvent& subevent, OpTrackFitConfig& config, ubphotonlib::PhotonLibrary& photonlib ) {
 
     std::cout << "[RunOpTrackFit] Start." << std::endl;

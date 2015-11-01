@@ -22,6 +22,9 @@ namespace optrackfit {
     double detcenter[3];
     double detsigma[3];
     double Clar;
+    int nwalkers;
+    int nburn;
+    int nsamples;
     
   };
   
