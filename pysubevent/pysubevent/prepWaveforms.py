@@ -70,7 +70,8 @@ def prepWaveforms( opdata, boundarysubevent=None ):
             t1 = -tstart
             tlen = np.minimum( len(qcorr)-t1, len(wfms[ch]) )
             #print "apply boundary correction to ch ",ch,": tstart=",tstart," covering=[0,",tlen,"]"
-            wfms[ch][:tlen] += qcorr[t1:t1+tlen] # boundary charge correction
+            if tlen>0:
+                wfms[ch][:tlen] += qcorr[t1:t1+tlen] # boundary charge correction
             # supress early subevent..
             if boundarysubevent.tend_sample>0 and boundarysubevent.tend_sample<len(wfms[ch]):
                 ped = getpedestal( wfms[ch][boundarysubevent.tend_sample:], 20, 0.5 )
@@ -134,10 +135,10 @@ def prepCosmicSubEvents( opdata, config ):
             tsample = int(t/config.nspersample)
             if cwd.slot==6:
                 wfm *= 10.0 # high gain window
-                print "lg waveform: ",ch,t,tsample
+                #print "lg waveform: ",ch,t,tsample
                 cosmics.addLGWaveform( ch, tsample, wfm)
             elif cwd.slot==5:
-                print "hg waveform: ",ch,t,tsample
+                #print "hg waveform: ",ch,t,tsample
                 cosmics.addHGWaveform( ch, tsample, wfm )
         
     subevents = formCosmicWindowSubEventsCPP( cosmics, config )

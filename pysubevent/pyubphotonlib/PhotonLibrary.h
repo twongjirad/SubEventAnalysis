@@ -20,6 +20,7 @@ namespace ubphotonlib {
     float GetCounts( double* pos, int opchannel );
     void GetCounts( double* pos, std::vector<float>& opchan_counts );
     void LoadLibraryFile( std::string libfile, PhotonVoxelDef* voxeldef, int NOpChannels );
+    const PhotonVoxelDef& GetVoxelDef() { return *fVoxelDef; };
     
     int NOpChannels() const {return fNOpChannels; };
     size_t NVoxels() const { return fNVoxels; };
