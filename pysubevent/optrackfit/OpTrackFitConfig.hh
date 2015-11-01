@@ -15,6 +15,13 @@ namespace optrackfit {
     double dEdx; // dEdx for MIP (muon
     int NCHANS; // number of channels
     double NSPERTICK; // time per tick
+    double fprompt;
+    double sig_t;
+    double sig_promptpe;
+    double sig_totpe;
+    double detcenter[3];
+    double detsigma[3];
+    double Clar;
     
   };
   
