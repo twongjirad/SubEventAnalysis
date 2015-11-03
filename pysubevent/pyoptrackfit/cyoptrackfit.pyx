@@ -3,6 +3,8 @@ cimport cython
 from cython.operator cimport dereference as deref
 from libcpp.vector cimport vector
 from libcpp.string cimport string
+from pysubevent.utils.pmtpos import getPosFromID,getDetectorCenter
+
 
 cimport numpy as np
 import numpy as np
@@ -51,8 +53,16 @@ cdef class pyOpTrackFitConfig:
         self.thisptr.detsigma[1]  = float(jconfig["detsigma"]["y"])
         self.thisptr.detsigma[2]  = float(jconfig["detsigma"]["z"])
         self.thisptr.Clar         = float(jconfig["Clar"])
+        self.thisptr.nwalkers     = int(jconfig["nwalkers"])
+        self.thisptr.nburn        = int(jconfig["nburn"])
+        self.thisptr.nsamples     = int(jconfig["nsamples"])
         print "Loaded OpTrackFitConfig: QE=%.4f LY=%.1f"%(self.thisptr.gQE,self.thisptr.LY)
-
+    property NCHANS:
+       def __get__(self): return self.thisptr.NCHANS
+    property nwalkers:
+       def __get__(self): return self.thisptr.nwalkers
+    property NSPERTICK:
+       def __get__(self): return self.thisptr.NSPERTICK
 
 from pysubevent.pysubevent.subeventdata cimport SubEvent
 from pysubevent.pyubphotonlib.photonlib cimport PhotonLibrary, PhotonVoxelDef
@@ -60,6 +70,7 @@ from pysubevent.pyubphotonlib.photonlib cimport PhotonLibrary, PhotonVoxelDef
 cdef extern from "OpTrackModule.hh" namespace "optrackfit":
     cdef void runOpTrackFit( SubEvent& subevent, OpTrackFitConfig& config, PhotonLibrary& photonlib )
     void extractFeatureVariables( SubEvent& subevent, vector[double]& featurevec, int NCHANS, double NSPERTICK, double TEMP_SPEAREA )
+    void printFeatureVector( vector[double]& featurevec )
     double lnProb( vector[double]& track_start_end, vector[double]& data_opfeatures,
                    PhotonLibrary& photonlib, OpTrackFitConfig& opconfig, vector[ vector[double] ]& chpos )
 
@@ -86,6 +97,7 @@ cdef genSeedTracks( pyOpTrackFitConfig config ):
 cdef class pyOpTrackModel:
     cdef pyOpTrackFitConfig opconfig
     cdef PyPhotonLibrary photonlib
+    cdef list chpos
     def __cinit__(self, pyOpTrackFitConfig opconfig, PyPhotonLibrary photonlib):
         self.opconfig = opconfig    # pyOpTrackFitConfig
         self.photonlib = photonlib  # PyPhotonLibrary
@@ -93,7 +105,10 @@ cdef class pyOpTrackModel:
     cpdef lnProb(self, x, opfeatures):
         return lnProb( x, opfeatures, deref(self.photonlib.thisptr), deref(self.opconfig.thisptr), self.chpos )
     def makeChannelMap(self):
-        return
+        chpos = []
+        for ich in range(0,self.opconfig.NCHANS):
+            chpos.append( getPosFromID( ich ) )
+        return chpos
 
 cpdef pyExtractFeatureVariables(  pySubEvent subevent, int NCHANS, double NSPERTICK, double TEMP_SPEAREA ):
     cdef vector[double] featurevec
@@ -105,22 +120,25 @@ cpdef runpyOpTrackFit( pySubEvent subevent, pyOpTrackFitConfig config, PyPhotonL
     cdef int ndims = 6
     # generate seeds
     model = pyOpTrackModel( config, photonlib )
+    print "[Run pyOpTrackFit] gen seed"
     p0 = genSeedTracks( config )
     # make feature vector to fit to
+    print "[Run pyOpTrackFit] gen seed"
     opfeatures = pyExtractFeatureVariables( subevent, config.NCHANS, config.NSPERTICK, 100.0 )
+    printFeatureVector( opfeatures )
     # make the MCMC sampler
-    sampler = emcee.EnsembleSampler( config.nwalkers, ndims, model.lnProb, args=[opfeatures])
-    print "[Run pyOpTrackFit] begin burn-in"
+    #sampler = emcee.EnsembleSampler( config.nwalkers, ndims, model.lnProb, args=[opfeatures])
+    #print "[Run pyOpTrackFit] begin burn-in"
     burntime = time.time()
-    fitpos, prob, state  = sampler.run_mcmc( p0, config.nburn )
+    #fitpos, prob, state  = sampler.run_mcmc( p0, config.nburn )
     print "[Run pyOpTrackFit] burn-in finished: ",time.time()-burntime," secs"
     print "[Run pyOpTrackFit] begin production sampling"
-    sampler.reset()
+    #sampler.reset()
     sampletime = time.time()
-    pos = sampler.run_mcmc( fitpos, config.nsamples)
+    #pos = sampler.run_mcmc( fitpos, config.nsamples)
     print "[Run pyOpTrackFit] samping finished: ",time.time()-sampletime," secs"
     print "[Run pyOpTrackFit] returning ensemble"
-    return sampler
+    #return sampler
 
     
 
