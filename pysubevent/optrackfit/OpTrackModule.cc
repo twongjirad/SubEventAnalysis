@@ -47,7 +47,7 @@ namespace optrackfit {
       dleft += ( track.start.at(i)-track.end.at(i) )*( track.start.at(i)-track.end.at(i) );
     dleft = sqrt(dleft);
     
-    std::vector<double> dir;
+    std::vector<double> dir(3,0.0);
     for ( int i=0; i<3; i++ )
       dir.at(i) = ( track.end.at(i)-track.start.at(i) )/dleft;
 
@@ -140,7 +140,7 @@ namespace optrackfit {
       for (int i=0; i<3; i++) {
 	midpt.at(i) = currentpos[i] + 0.5*shortest_s*dir.at(i);
       }
-      std::vector<float> chvis;
+      std::vector<float> chvis(NCHANS,0.0);
       photonlib.GetCounts( midpt.data(), chvis );
       for (int i=0; i<NCHANS; i++) {
 	chvis.at(i) *= LY*dEdx*stepdist;

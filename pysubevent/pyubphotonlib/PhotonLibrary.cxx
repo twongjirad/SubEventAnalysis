@@ -51,8 +51,14 @@ namespace ubphotonlib {
   void PhotonLibrary::GetCounts( size_t voxel, std::vector<float>& opchan_counts ) {
     opchan_counts.clear();
     opchan_counts.reserve( fNOpChannels );
-    for ( size_t opchan=0; opchan<fLookupTable.at(voxel).size(); opchan++ ) {
-      opchan_counts.push_back( fLookupTable.at(voxel).at( opchan ) ) ;
+    
+    if ( voxel>=0 && voxel<fLookupTable.size() ) {
+      for ( size_t opchan=0; opchan<fLookupTable.at(voxel).size(); opchan++ )
+	opchan_counts.push_back( fLookupTable.at(voxel).at( opchan ) ) ;
+    }
+    else{
+      for ( size_t opchan=0; opchan<fNOpChannels; opchan++ )
+	opchan_counts.push_back( 0.0 );
     }
   }
   

@@ -391,8 +391,9 @@ def test_runSubEventFinder( opdata, seconfig, filename, opdisplay=None ):
     import pysubevent.utils.pmtcalib as spe
     pmtspe = spe.getCalib( "../config/pmtcalib_20150930.json" )
 
-    from pysubevent.pyoptrackfit.cyoptrackfit import runpyOpTrackFit, pyOpTrackFitConfig
+    from pysubevent.pyoptrackfit.cyoptrackfit import runpyOpTrackFit, pyOpTrackFitConfig, makeHistograms
 
+    tf = ROOT.TFile("test_optrack.root","recreate")
     opconfig = pyOpTrackFitConfig( "optrackfit.json" )
 
     ok = True
@@ -429,8 +430,21 @@ def test_runSubEventFinder( opdata, seconfig, filename, opdisplay=None ):
         print "Run OpTrackFin"
         #OpTrackFit( subevents ) # pythonthin
 
-        runpyOpTrackFit( subevents.getlist()[0], opconfig, photonlib.photonlib ) # native c++
+        ndims = 6
+        sampler = runpyOpTrackFit( subevents.getlist()[0], opconfig, photonlib.photonlib ) # native c++
         print "op track fit returned"
+        np.savez( "tracksamples.npz", sampler.flatchain )
+        print "samples saved"
+        hzy, hxy, hzx = makeHistograms( sampler.flatchain, photonlib, photonlib.photonlib, opconfig, "event%d"%(opdata.event) )
+        print "made histograms"
+        hzy.Write()
+        hxy.Write()
+        hzx.Write()
+        #for i in range(ndims):
+        #    pl.figure()
+        #    pl.hist(sampler.flatchain[:,i], 100, color="k", histtype="step")
+        #    pl.title("Dimension {0:d}".format(i))
+        #pl.show()
             
         if opdisplay is not None:
             # add subevent drawings
@@ -492,10 +506,11 @@ if __name__ == "__main__":
     from pylard.pylardata.rawdigitsopdata import RawDigitsOpData
     from pylard.larlite_interface.larliteopdata import LArLiteOpticalData
     fname = "../../data/pmtratedata/pmtrawdigits_recent_radon.root"
-    opdata = RawDigitsOpData( fname )
-    #opdata = LArLiteOpticalData( "../../mc/mcc6.1samples/mcc6.1sample_3_2493461_0.root" )
-    #ok = opdata.getNextEntry()
-    ok = opdata.gotoEvent(5)
+    #opdata = RawDigitsOpData( fname )
+    #ok = opdata.gotoEvent(5)
+    opdata = LArLiteOpticalData( "../../mc/mcc6.1samples/mcc6.1sample_3_2493461_0.root" )
+    ok = opdata.gotoEvent(112)
+    #ok = opdata.getNextEntry(
     if vis:
         app = QtGui.QApplication([])
         opdisplay = OpDetDisplay( opdata )

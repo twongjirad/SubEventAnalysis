@@ -23,7 +23,9 @@ if __name__ == "__main__":
     denom = float(len( chain ))
 
     print len(chain)," samples"
-    for pos in chain:
+    for n,pos in enumerate(chain):
+        if n%10000==0:
+            print "sample: ",n
         
         track = TrackHypothesis( pos[:3], pos[3:] )
         
