@@ -276,6 +276,8 @@ from SubEventModConfig cimport SubEventModConfig
 cdef class pySubEventModConfig:
     cdef SubEventModConfig* thisptr
     cdef str discrname
+    cdef float RC
+    cdef float fA
     def __cinit__( self, discrname, configfile ):
         self.thisptr = new SubEventModConfig()
         self.discrname = discrname
@@ -312,6 +314,8 @@ cdef class pySubEventModConfig:
         self.thisptr.maxsubeventloops = 50
         self.thisptr.ampthresh = float(jconfig["ampthresh"])
         self.thisptr.hitthresh = int(jconfig["hitthresh"])
+        self.RC = float(jconfig["RC"])
+        self.fA = float(jconfig["fA"])
         f.close()
     property cfd_threshold:
       def __get__(self): return self.thisptr.cfdconfig.threshold
@@ -327,6 +331,14 @@ cdef class pySubEventModConfig:
       def __get__(self): return self.thisptr.cfdconfig.delay
     property flashgate:
       def __get__(self): return self.thisptr.flashgate
+    property hgslot:
+      def __get__(self): return self.thisptr.hgslot
+    property lgslot:
+      def __get__(self): return self.thisptr.lgslot
+    property RC:
+      def __get__(self): return self.RC
+    property fA:
+      def __get__(self): return self.fA
 
 
 # ====================================================================================================

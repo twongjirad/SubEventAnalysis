@@ -4,5 +4,8 @@ export SUBEVENTDATA=${VIRTUAL_ENV}/../config
 export SUBEVENTPATH=${VIRTUAL_ENV}/lib/python2.7/site-packages/pysubevent
 export LD_LIBRARY_PATH=${SUBEVENTHOME}:${SUBEVENTPATH}/pyubphotonlib:${SUBEVENTPATH}/cfdiscriminator:${SUBEVENTPATH}/subevent:${LD_LIBRARY_PATH}
 export DYLD_LIBRARY_PATH=${SUBEVENTPATH}/optrackfit:${SUBEVENTPATH}/pyubphotonlib:${SUBEVENTPATH}/cfdiscriminator:${SUBEVENTPATH}/subevent:${DYLD_LIBRARY_PATH}
+cd larlite
+source config/setup.sh
+cd ..
 #export PYTHONPATH=${VIRTUAL_ENV}/lib/python2.7/site-packages:${PYTHONPATH}
 #export LD_LIBRARY_PATH=${VIRTUAL_ENV}/../:${LD_LIBRARY_PATH}

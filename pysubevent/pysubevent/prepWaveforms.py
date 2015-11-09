@@ -2,12 +2,12 @@ import os,sys
 import numpy as np
 from pysubevent.utils.pedestal import getpedestal
 
-def prepWaveforms( opdata, boundarysubevent=None ):
+def prepWaveforms( opdata, RC, fA,hgslot, lgslot, boundarysubevent=None, doit=True ):
     """ prep beam windows. we do baseline and charge corrections. """
-    RC = 80000.0 # ns
-    fA = 5.0
-    hgslot = 5
-    lgslot = 6
+    #RC = 80000.0 # ns
+    #fA = 5.0
+    #hgslot = 5
+    #lgslot = 6
 
     wfms = {} # will store waveforms for each channel
     qs   = {} # will store charge correction  for each channel
@@ -106,8 +106,9 @@ def prepWaveforms( opdata, boundarysubevent=None ):
         for i in range(np.maximum(1,tlen),len(qs[ch])):
             #for j in range(i+1,np.minimum(i+1+200,len(qs[:,ch])) ):
             q = fA*wfms[ch][i]*(15.625/RC) + qs[ch][i-1]*np.exp(-1.0*15.625/RC) # 10 is fudge factor!
-            qs[i,ch] = q
-            #wfms[i,ch] += q # in window charge correction
+            qs[ch][i] = q
+            if doit:
+                wfms[ch][i] += q # in window charge correction
         opdata.getBeamWindows( hgslot, ch )[0].wfm = wfms[ch]
     
     npwfms = np.zeros( (nlargest,48), dtype=np.float )
