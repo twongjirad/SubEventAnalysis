@@ -1,4 +1,5 @@
 #include "PMTPosMap.hh"
+#include <cstring>
 
 namespace subevent {
 
@@ -51,7 +52,7 @@ namespace subevent {
 			       { -161.3 , -2.801 , 280.161 } };// FEMCH35
     
     if (femch<0 && femch>=36 ) {
-      memset( pos, 0, sizeof(double)*3 );
+      std::memset( pos, 0, sizeof(double)*3 );
       return false;
     }
     for (int i=0; i<3; i++)

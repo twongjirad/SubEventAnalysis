@@ -45,7 +45,7 @@ namespace subevent {
 	var.at( i ) = sqrt( xx - x*x );
       }
       // middle
-      for ( int i=5; i<wfm.size()-5; i++) {
+      for ( int i=5; i<(int)wfm.size()-5; i++) {
 	double x=0;
 	double xx=0;
 	for (int j=-5;j<5; j++) {
@@ -58,7 +58,7 @@ namespace subevent {
 	var.at( i ) = sqrt( xx-x*x );
       }
       // end
-      for ( int i=wfm.size()-5; i<wfm.size(); i++ ) {
+      for ( int i=(int)wfm.size()-5; i<(int)wfm.size(); i++ ) {
 	double x=0;
 	double xx=0;
 	for (int j=-10; j<0; j++) {
@@ -74,14 +74,14 @@ namespace subevent {
       // now we chuck any spots that have high variance connecting them linearly between good baselines
       
       // get first good mean and replace
-      int j=var.size(); 
+      int j=(int)var.size(); 
       double varthreshold = 1.0;
-      while (j>=var.size()) {
+      while (j>=(int)var.size()) {
 	j = 0;
 	// search for first good variance region
-	while ( j<var.size() && var.at(j)>varthreshold )
+	while ( j<(int)var.size() && (double)var.at(j)>varthreshold )
 	  j++;
-	if ( j<mean.size() ) {
+	if ( j<(int)mean.size() ) {
 	  for (int i=0; i<j; i++) {
 	    mean.at(i) = mean.at(j);
 	    var.at(i) = 0.0;
@@ -101,11 +101,11 @@ namespace subevent {
 
       
       int lastmean = j;
-      for ( int i=j; i<mean.size(); i++ ) {
+      for ( int i=j; i<(int)mean.size(); i++ ) {
 	if ( var.at(i)>1.0 ) {
 	  // find the next good mean
 	  double k=i;
-	  while ( k<mean.size() && var.at(k)>1.0 )
+	  while ( k<(int)mean.size() && (double)var.at(k)>1.0 )
 	    k++;
 	  if ( k<mean.size() ) {
 	    double dydx = ( mean.at(k)-mean.at(i-1) )/double( k-(i-1) );
@@ -120,7 +120,7 @@ namespace subevent {
 	  lastmean = i;
       }
       
-      for ( int i=lastmean; i<mean.size(); i++ ) {
+      for ( int i=lastmean; i<(int)mean.size(); i++ ) {
 	mean.at( i ) = mean.at( lastmean );
       }
 

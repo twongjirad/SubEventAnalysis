@@ -3,13 +3,17 @@
 #include "FlashList.hh"
 #include "SubEventList.hh"
 #include "WaveformData.hh"
-#include "PMTPosMap.hh"
-//#include "uboone/OpticalDetectorAna/OpticalSubEvents/cfdiscriminator_algo/cfdiscriminator.hh" // for use with larsoft
-#include "cfdiscriminator.hh"
 #include "scintresponse.hh"
 #include <algorithm>
 #include <iostream>
 #include <cmath>
+
+#include "PMTPosMap.hh"
+#ifdef __FORLARSOFT__
+#include "uboone/OpticalDetectorAna/OpticalSubEvents/cfdiscriminator_algo/cfdiscriminator.hh" // for use with larsoft
+#else
+#include "cfdiscriminator.hh"
+#endif
 
 namespace subevent {
 
@@ -129,7 +133,7 @@ namespace subevent {
       opflash.area = 0.0;
       for (int tdc=0; tdc<(int)opflash.expectation.size(); tdc++) {
 	fx = opflash.expectation.at(tdc);
-	if ( opflash.tstart+tdc<baseline.size() )
+	if ( opflash.tstart+tdc<(int)baseline.size() )
 	  chped = baseline.at( opflash.tstart+tdc );
 	else
 	  chped = baseline.at( baseline.size()-1 );
