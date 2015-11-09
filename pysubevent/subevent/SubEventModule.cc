@@ -3,6 +3,7 @@
 #include "FlashList.hh"
 #include "SubEventList.hh"
 #include "WaveformData.hh"
+#include "PMTPosMap.hh"
 //#include "uboone/OpticalDetectorAna/OpticalSubEvents/cfdiscriminator_algo/cfdiscriminator.hh" // for use with larsoft
 #include "cfdiscriminator.hh"
 #include "scintresponse.hh"
@@ -174,22 +175,63 @@ namespace subevent {
 
   // ============================================================================================================
   // fillFlashAccumulators
-  void fillFlashAccumulators( FlashList& flashes, std::map< int, double >& pmtspemap, SubEventModConfig& config, std::vector< double >& peacc, std::vector< double >& hitacc ) {
+  void fillFlashAccumulators( FlashList& flashes, std::map< int, double >& pmtspemap, SubEventModConfig& config, 
+			      std::vector< double >& peacc,  // number of in time pe
+			      std::vector< double >& hitacc,  // number of in time hits
+			      std::vector< double >& zvar,
+			      std::vector< double >& yvar
+			      ) {
+
+    std::vector< double > ysum(  peacc.size(), 0.0 );
+    std::vector< double > y2sum( peacc.size(), 0.0 );
+    std::vector< double > zsum(  peacc.size(), 0.0 );
+    std::vector< double > z2sum( peacc.size(), 0.0 );
 
     for ( FlashListIter iflash=flashes.begin(); iflash!=flashes.end(); iflash++ ) {
       if ( (*iflash).claimed )
 	continue;
 
+      double chpos[3];
+      PMTPosMap::GetPos( (*iflash).ch, chpos );
+      
       int start = std::max( int( (*iflash).tstart-0.5*config.flashgate), 0 );
-      int end = std::min( int( (*iflash).tstart+0.5*config.flashgate ), (int)peacc.size() );
+      int end = std::min( int( (*iflash).tstart+0.5*config.flashgate ), (int)peacc.size()-1 );
       //std::cout << "add flash acc: ch=" << (*iflash).ch << " maxamp=" <<  ((*iflash).maxamp)/pmtspemap[(*iflash).ch] << " t=[" << start << ", " << end << "]" << std::endl;
-      for ( int t=start; t<end; t++ ) {
-	peacc.at(t) += ((*iflash).maxamp)/pmtspemap[(*iflash).ch];
+      for ( int t=start; t<=end; t++ ) {
+	double pe = ((*iflash).maxamp)/pmtspemap[(*iflash).ch];
+	peacc.at(t) += pe;
 	hitacc.at(t) += 1.0;
+	ysum.at(t) += pe*chpos[1];
+	y2sum.at(t) += pe*pe*chpos[1]*chpos[1];
+	zsum.at(t) += pe*chpos[2];
+	z2sum.at(t) += pe*pe*chpos[2]*chpos[2];
       }
       
     }
-
+    
+    // finish accumulators
+    zvar.resize(peacc.size(), 0.0);
+    yvar.resize(peacc.size(), 0.0);
+    
+    for ( int t=0; t<(int)peacc.size(); t++ ) {
+      if ( peacc[t]>0 ) {
+	ysum.at(t) /= peacc.at(t);
+	zsum.at(t) /= peacc.at(t);
+	y2sum.at(t) /= peacc.at(t);
+	z2sum.at(t) /= peacc.at(t);
+	zvar.at(t) = sqrt( z2sum.at(t) - zsum.at(t)*zsum.at(t) )/peacc.at(t);
+	yvar.at(t) = sqrt( y2sum.at(t) - ysum.at(t)*ysum.at(t) )/peacc.at(t);
+      }
+      else {
+	ysum.at(t)  = 0.0;
+	zsum.at(t)  = 0.0;
+	y2sum.at(t) = 0.0;
+	z2sum.at(t) = 0.0;
+	zvar.at(t) = 0.0;
+	yvar.at(t) = 0.0;
+      }
+    }
+    
   }
 
   // ============================================================================================================
@@ -218,6 +260,8 @@ namespace subevent {
     int nsamples = wfms.get( *itch ).size();
     std::vector< double > peacc( nsamples, 0.0 );
     std::vector< double > hitacc( nsamples, 0.0 );
+    std::vector< double > zvaracc( nsamples, 0.0 );
+    std::vector< double > yvaracc( nsamples, 0.0 );
 
     while ( nloops < config.maxsubeventloops ) {
       //std::cout << " start subevent search: loop#" << nloops << std::endl;
@@ -227,27 +271,30 @@ namespace subevent {
       peacc.assign( nsamples, 0.0 );
       hitacc.assign( nsamples, 0.0 );
       
-      fillFlashAccumulators( flashes, pmtspemap, config, peacc, hitacc );
+      fillFlashAccumulators( flashes, pmtspemap, config, peacc, hitacc, zvaracc, yvaracc );
 
       // find maximums
       //double  hit_tmax = 0;
       double pe_tmax = 0;
+      double zvar_tmax = 0.;
+      double yvar_tmax = 0.;
       double pemax = 0;
       double hitmax = 0;
       for ( int tick=0; tick<(int)peacc.size(); tick++ ) {
 	if ( peacc.at(tick)>pemax ) {
 	  pemax = peacc.at(tick);
 	  pe_tmax = tick;
-	}
-	if ( hitacc.at(tick)>hitmax ) {
+	  zvar_tmax = zvaracc.at(tick);
+	  yvar_tmax = yvaracc.at(tick);
 	  hitmax = hitacc.at(tick);
-	  //hit_tmax = tick;
 	}
       }
-      //std::cout << "  accumulator max: t=" << pe_tmax << " amp=" << pemax << " hits=" << hitmax << std::endl;
+      std::cout << "  accumulator max: t=" << pe_tmax << " amp=" << pemax << " hits=" << hitmax << " zvar=" << zvar_tmax << " yvar=" << yvar_tmax << std::endl;
 
       // organize flashes within maxima
-      if ( pemax>config.ampthresh || hitmax>config.hitthresh ) {
+      if ( (hitmax==1 && pemax>config.ampthresh)
+	   || ( hitmax>1 && pemax>config.ampthresh && zvar_tmax<50.0 && yvar_tmax<10 ) ) {
+	
 	// passed! 
 	SubEvent newsubevent;
 	
