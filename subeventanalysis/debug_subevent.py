@@ -260,8 +260,10 @@ if __name__ == "__main__":
     #fname = "../mc_piminus_rawdigits_nodark.root"
     #opdata = RawDigitsOpData( fname )
     opdata = LArLiteOpticalData( "../../mc/mcc6.1samples/mcc6.1sample_3_2493461_0.root" )
-    ok = opdata.getNextEntry()
-    #ok = opdata.gotoEvent(110)
+    #opdata = LArLiteOpticalData( "../../pylard/test_opflash.root" )
+    #opdata = LArLiteOpticalData( "../../pylard/larlite_mergedopdata_run2382.root" )
+    #ok = opdata.getNextEntry()
+    ok = opdata.gotoEvent(102)
     if vis:
         opdisplay = OpDetDisplay( opdata )
         opdisplay.show()

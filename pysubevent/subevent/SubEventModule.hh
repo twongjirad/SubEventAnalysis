@@ -21,7 +21,7 @@ namespace subevent {
   
   void formFlashes( WaveformData& wfms, SubEventModConfig& config, std::string discrname, FlashList& flashes, WaveformData& postwfms );
   void fillFlashAccumulators( FlashList& flashes, std::map< int, double >& pmtspemap, SubEventModConfig& config, 
-			      std::vector< double >& peacc, std::vector< double >& hitacc, std::vector< double >& zvar, std::vector< double >& yvar );
+			      std::vector< double >& peacc, std::vector< double >& hitacc, std::vector<double>& zmean, std::vector< double >& zvar, std::vector<double>& ymean, std::vector< double >& yvar );
                               
 
   void AnalyzeSubEvents( SubEventList& subevents );

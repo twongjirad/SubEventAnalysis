@@ -3,6 +3,7 @@
 #include "FlashList.hh"
 #include "SubEventList.hh"
 #include "WaveformData.hh"
+#include "FlashTHitMap.hh"
 #include "scintresponse.hh"
 #include <algorithm>
 #include <iostream>
@@ -182,7 +183,9 @@ namespace subevent {
   void fillFlashAccumulators( FlashList& flashes, std::map< int, double >& pmtspemap, SubEventModConfig& config, 
 			      std::vector< double >& peacc,  // number of in time pe
 			      std::vector< double >& hitacc,  // number of in time hits
+			      std::vector< double >& zmean,
 			      std::vector< double >& zvar,
+			      std::vector< double >& ymean,
 			      std::vector< double >& yvar
 			      ) {
 
@@ -214,6 +217,10 @@ namespace subevent {
     }
     
     // finish accumulators
+    zmean.clear();
+    ymean.clear();
+    zmean.resize(peacc.size(), 0.0);
+    ymean.resize(peacc.size(), 0.0);
     zvar.resize(peacc.size(), 0.0);
     yvar.resize(peacc.size(), 0.0);
     
@@ -266,6 +273,8 @@ namespace subevent {
     std::vector< double > hitacc( nsamples, 0.0 );
     std::vector< double > zvaracc( nsamples, 0.0 );
     std::vector< double > yvaracc( nsamples, 0.0 );
+    std::vector< double > zmeanacc( nsamples, 0.0 );
+    std::vector< double > ymeanacc( nsamples, 0.0 );
 
     while ( nloops < config.maxsubeventloops ) {
       //std::cout << " start subevent search: loop#" << nloops << std::endl;
@@ -275,10 +284,22 @@ namespace subevent {
       peacc.assign( nsamples, 0.0 );
       hitacc.assign( nsamples, 0.0 );
       
-      fillFlashAccumulators( flashes, pmtspemap, config, peacc, hitacc, zvaracc, yvaracc );
+      FlashTHitMap hitmap( config.maxchflashes, nsamples, 0.0 );
+      for ( FlashListIter iflash=flashes.begin(); iflash!=flashes.end(); iflash++ ) {
+	if ( (*iflash).claimed )
+	  continue;
+
+	int start = std::max( int( (*iflash).tstart-0.5*config.flashgate), 0 );
+	int end = std::min( int( (*iflash).tstart+0.5*config.flashgate ), nsamples-1 );
+	hitmap.addFlash( start, end, &(*iflash) );
+      }
+
+      fillFlashAccumulators( flashes, pmtspemap, config, peacc, hitacc,
+			     zmeanacc, zvaracc, ymeanacc, yvaracc );
 
       // find maximums
       //double  hit_tmax = 0;
+      int tick_max = 0;
       double pe_tmax = 0;
       double zvar_tmax = 0.;
       double yvar_tmax = 0.;
@@ -291,9 +312,15 @@ namespace subevent {
 	  zvar_tmax = zvaracc.at(tick);
 	  yvar_tmax = yvaracc.at(tick);
 	  hitmax = hitacc.at(tick);
+	  tick_max = tick;
 	}
       }
       std::cout << "  accumulator max: t=" << pe_tmax << " amp=" << pemax << " hits=" << hitmax << " zvar=" << zvar_tmax << " yvar=" << yvar_tmax << std::endl;
+      std::vector< Flash* > ptrflashes;
+      hitmap.getFlashes( tick_max, ptrflashes );
+      std::cout <<"   flashes at tick: " << std::endl;
+      for (int i=0; i<(int)ptrflashes.size(); i++)
+	std::cout << "     (" << i << ") " << (*ptrflashes.at(i)).ch << " t=" << (*ptrflashes.at(i)).tstart << std::endl;
 
       // organize flashes within maxima
       if ( (hitmax==1 && pemax>config.ampthresh)
