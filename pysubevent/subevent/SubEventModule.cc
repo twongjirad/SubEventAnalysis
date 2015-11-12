@@ -4,6 +4,7 @@
 #include "SubEventList.hh"
 #include "WaveformData.hh"
 #include "FlashTHitMap.hh"
+#include "FlashClusterMod.hh"
 #include "scintresponse.hh"
 #include <algorithm>
 #include <iostream>
@@ -189,10 +190,14 @@ namespace subevent {
 			      std::vector< double >& yvar
 			      ) {
 
-    std::vector< double > ysum(  peacc.size(), 0.0 );
-    std::vector< double > y2sum( peacc.size(), 0.0 );
-    std::vector< double > zsum(  peacc.size(), 0.0 );
-    std::vector< double > z2sum( peacc.size(), 0.0 );
+    zmean.clear();
+    ymean.clear();
+    zvar.clear();
+    yvar.clear();
+    zmean.resize(peacc.size(), 0.0);
+    ymean.resize(peacc.size(), 0.0);
+    zvar.resize(peacc.size(), 0.0);
+    yvar.resize(peacc.size(), 0.0);
 
     for ( FlashListIter iflash=flashes.begin(); iflash!=flashes.end(); iflash++ ) {
       if ( (*iflash).claimed )
@@ -201,45 +206,38 @@ namespace subevent {
       double chpos[3];
       PMTPosMap::GetPos( (*iflash).ch, chpos );
       
-      int start = std::max( int( (*iflash).tstart-0.5*config.flashgate), 0 );
-      int end = std::min( int( (*iflash).tstart+0.5*config.flashgate ), (int)peacc.size()-1 );
+      int start = std::max( int( (*iflash).tmax-0.5*config.flashgate), 0 );
+      int end = std::min( int( (*iflash).tmax+0.5*config.flashgate ), (int)peacc.size()-1 );
       //std::cout << "add flash acc: ch=" << (*iflash).ch << " maxamp=" <<  ((*iflash).maxamp)/pmtspemap[(*iflash).ch] << " t=[" << start << ", " << end << "]" << std::endl;
       for ( int t=start; t<=end; t++ ) {
-	double pe = ((*iflash).maxamp)/pmtspemap[(*iflash).ch];
+	double pe = (*iflash).maxamp;//)/pmtspemap[(*iflash).ch];
 	peacc.at(t) += pe;
 	hitacc.at(t) += 1.0;
-	ysum.at(t) += pe*chpos[1];
-	y2sum.at(t) += pe*pe*chpos[1]*chpos[1];
-	zsum.at(t) += pe*chpos[2];
-	z2sum.at(t) += pe*pe*chpos[2]*chpos[2];
+	double w = pe;
+	double W = peacc.at(t);
+	double yold = ymean.at(t);
+	double zold = zmean.at(t);
+
+	if (W>0) {
+	  // update means
+	  ymean.at(t) += (w/W)*( chpos[1] - yold );
+	  zmean.at(t) += (w/W)*( chpos[2] - zold );
+
+	  yvar.at(t) += w*( chpos[1] - yold)*(chpos[1]-ymean.at(t));
+	  zvar.at(t) += w*( chpos[2] - zold)*(chpos[2]-zmean.at(t));
+	}
+	
       }
       
     }
     
-    // finish accumulators
-    zmean.clear();
-    ymean.clear();
-    zmean.resize(peacc.size(), 0.0);
-    ymean.resize(peacc.size(), 0.0);
-    zvar.resize(peacc.size(), 0.0);
-    yvar.resize(peacc.size(), 0.0);
-    
+    // finish accumulators    
     for ( int t=0; t<(int)peacc.size(); t++ ) {
-      if ( peacc[t]>0 ) {
-	ysum.at(t) /= peacc.at(t);
-	zsum.at(t) /= peacc.at(t);
-	y2sum.at(t) /= peacc.at(t);
-	z2sum.at(t) /= peacc.at(t);
-	zvar.at(t) = sqrt( z2sum.at(t) - zsum.at(t)*zsum.at(t) )/peacc.at(t);
-	yvar.at(t) = sqrt( y2sum.at(t) - ysum.at(t)*ysum.at(t) )/peacc.at(t);
-      }
-      else {
-	ysum.at(t)  = 0.0;
-	zsum.at(t)  = 0.0;
-	y2sum.at(t) = 0.0;
-	z2sum.at(t) = 0.0;
-	zvar.at(t) = 0.0;
-	yvar.at(t) = 0.0;
+      if ( peacc[t]>0 && hitacc.at(t)>0 ) {
+	zvar.at(t) /= peacc[t];
+	yvar.at(t) /= peacc[t];
+	zvar.at(t) = sqrt(zvar.at(t));
+	yvar.at(t) = sqrt(yvar.at(t));
       }
     }
     
@@ -289,8 +287,8 @@ namespace subevent {
 	if ( (*iflash).claimed )
 	  continue;
 
-	int start = std::max( int( (*iflash).tstart-0.5*config.flashgate), 0 );
-	int end = std::min( int( (*iflash).tstart+0.5*config.flashgate ), nsamples-1 );
+	int start = std::max( int( (*iflash).tmax-0.5*config.flashgate), 0 );
+	int end = std::min( int( (*iflash).tmax+0.5*config.flashgate ), nsamples-1 );
 	hitmap.addFlash( start, end, &(*iflash) );
       }
 
@@ -303,6 +301,8 @@ namespace subevent {
       double pe_tmax = 0;
       double zvar_tmax = 0.;
       double yvar_tmax = 0.;
+      double zmean_tmax = 0.;
+      double ymean_tmax = 0.;
       double pemax = 0;
       double hitmax = 0;
       for ( int tick=0; tick<(int)peacc.size(); tick++ ) {
@@ -311,21 +311,57 @@ namespace subevent {
 	  pe_tmax = tick;
 	  zvar_tmax = zvaracc.at(tick);
 	  yvar_tmax = yvaracc.at(tick);
+	  zmean_tmax = zmeanacc.at(tick);
+	  ymean_tmax = ymeanacc.at(tick);
 	  hitmax = hitacc.at(tick);
 	  tick_max = tick;
 	}
       }
-      std::cout << "  accumulator max: t=" << pe_tmax << " amp=" << pemax << " hits=" << hitmax << " zvar=" << zvar_tmax << " yvar=" << yvar_tmax << std::endl;
+      std::cout << "  accumulator max: t=" << pe_tmax  << " (" << pe_tmax*15.625 << " ns ) "
+		<< " amp=" << pemax 
+		<< " hits=" << hitmax 
+		<< " zmean=" << 518.0-zmean_tmax << " zvar=" << zvar_tmax 
+		<< " ymean=" << ymean_tmax << " yvar=" << yvar_tmax << std::endl;
       std::vector< Flash* > ptrflashes;
       hitmap.getFlashes( tick_max, ptrflashes );
       std::cout <<"   flashes at tick: " << std::endl;
-      for (int i=0; i<(int)ptrflashes.size(); i++)
-	std::cout << "     (" << i << ") " << (*ptrflashes.at(i)).ch << " t=" << (*ptrflashes.at(i)).tstart << std::endl;
+      for (int i=0; i<(int)ptrflashes.size(); i++)  {
+	double pmtpos[3];
+	PMTPosMap::GetPos( (*ptrflashes.at(i)).ch, pmtpos );
+	std::cout << "     (" << i << ") " << (*ptrflashes.at(i)).ch 
+		  << " t=" << (*ptrflashes.at(i)).tstart 
+		  << " tpeak=" << (*ptrflashes.at(i)).tmax 
+		  << " amp=" << (*ptrflashes.at(i)).maxamp 
+		  << " pos=(" << pmtpos[0] << ", " << pmtpos[1] << ", " << 518.0-pmtpos[2] << ")"
+		  << std::endl;
+      }
+      
+      // try to pass
+      bool accept = false;
+      while ( hitmax>1 && accept==false ) {
+	
+	if ( (hitmax>1.5 && pemax/double(hitmax)>config.ampthresh) // pe concentration
+	     && ( hitmax>=10 || ( hitmax>=2 && zvar_tmax<150.0 && yvar_tmax<150 )  ) ) {
+	  accept = true;
+	}
+	else {
+	  // remove smallest, update quantities
+	  hitmax = (double)RemoveSmallestFurthest( ptrflashes, zmean_tmax, ymean_tmax, zvar_tmax, yvar_tmax, pemax );
+	  std::cout << "    reduced cluster. "
+		    << " amp=" << pemax 
+		    << " hits=" << hitmax 
+		    << " zmean=" << 518.0-zmean_tmax << " zvar=" << zvar_tmax 
+		    << " ymean=" << ymean_tmax << " yvar=" << yvar_tmax << std::endl;
+	}
+	
+      }
+      
 
       // organize flashes within maxima
-      if ( (hitmax==1 && pemax>config.ampthresh)
-	   || ( hitmax>1 && pemax>config.ampthresh && zvar_tmax<50.0 && yvar_tmax<10 ) ) {
+      if ( accept ) {
 	
+	std::cout << "  Accpeted Subevent proposed" << std::endl;
+
 	// passed! 
 	SubEvent newsubevent;
 	
@@ -334,11 +370,14 @@ namespace subevent {
 	
 	// form subevent by grouping flashes around tmax
 	int nclaimed = 0;
-	for ( FlashListIter iflash=flashes.begin(); iflash!=flashes.end(); iflash++ ) {
-	  
+	//for ( FlashListIter iflash=flashes.begin(); iflash!=flashes.end(); iflash++ ) {
+	for ( int i=0; i<(int)ptrflashes.size(); i++ ) {
+	  Flash* iflash = ptrflashes.at(i);
+	  if ( iflash==NULL ) continue;
+
 	  if ( (*iflash).claimed ) continue;
 	  
-	  if ( abs( (*iflash).tstart - pe_tmax )< config.flashgate ) {
+	  if ( abs( (*iflash).tmax - pe_tmax )< config.flashgate ) {
 
 	    newsubevent.tstart_sample = (int)pe_tmax;
 	    if ( newsubevent.tend_sample < (int)(*iflash).tend )
@@ -356,13 +395,38 @@ namespace subevent {
 
 	} //end of flash loop
 	
+	// eat flashes in time and in space
+	for ( FlashListIter iflash=flashes.begin(); iflash!=flashes.end(); iflash++ ) {
+          if ( (*iflash).claimed ) continue;
+	  bool intime = false;
+	  bool inspace = false;
+	  if ( (*iflash).tmax>=newsubevent.tstart_sample && (*iflash).tmax<=newsubevent.tend_sample )
+	    intime = true;
+	  
+	  double pmtpos[3];
+	  PMTPosMap::GetPos( (*iflash).ch, pmtpos );
+	  if ( abs( pmtpos[2]-zmean_tmax )<zvar_tmax  && abs( pmtpos[1]-ymean_tmax )<yvar_tmax )
+	    inspace = true;
+
+	  if ( intime && inspace ) {
+	    newsubevent.totpe += (*iflash).area;
+	    newsubevent.sumflash30 += ((*iflash).area30);
+	    newsubevent.sumfcomp_gausintegral += (*iflash).fcomp_gausintegral;
+	    (*iflash).claimed = true;
+	    Flash copyflash( (*iflash ) );
+	    newsubevent.flashes.add( std::move( copyflash ) );
+            nclaimed++;
+	  }
+	}
+	
+
 	// store new subevent
 	//std::cout << "  subevent " << subevents.size() << ": tstart=" << newsubevent.tstart_sample << "  tend=" << newsubevent.tend_sample << " nflashes=" << newsubevent.flashes.size() << std::endl;
 	subevents.add( std::move( newsubevent ) );
 	
       }
       else {
-	//std::cout << "  did not find additional subevent" << std::endl;
+	std::cout << "  did not find additional subevent" << std::endl;
 	break;
       }
 

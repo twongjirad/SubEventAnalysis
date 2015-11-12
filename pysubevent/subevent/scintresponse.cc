@@ -36,7 +36,7 @@ namespace subevent {
     float tmax_ns = maxt*nspertick;
     float tstart_ns = tstart*nspertick;
     float est_pe_f = maxamp/20.0;
-    float tend_ns = fabs( slowconst*log( (0.1/est_pe_f)*(fastfrac/(1.0-fastfrac))) );
+    float tend_ns = fabs( slowconst*log( (0.01/est_pe_f)*(fastfrac/(1.0-fastfrac))) );
     if ( maxamp<noslowthresh )
       tend_ns = sig*3; // uses SPE guassian
     //std::cout << "tend_ns=" << tend_ns << "(Af=" << Af << ", maxamp=" << est_pe_f << ")" << std::endl;
